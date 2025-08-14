@@ -7,6 +7,7 @@ Globals:
     Timeout: 30
     MemorySize: 256
     Runtime: nodejs18.x
+    CodeUri: dist
     Environment:
       Variables:
         MENUS_TABLE: bell-menus-local
@@ -18,7 +19,7 @@ Globals:
         REFUND_CAP_PERCENT: 5
         ALLOWED_PAYMENT_METHODS: "naverpay,kakaopay"
         POS_PRINTER_COUNT: 1
-        DYNAMODB_ENDPOINT: "http://host.docker.internal:8000"
+        DYNAMODB_ENDPOINT: "http://dynamodb-local:8000"
         AWS_REGION: ap-northeast-2
         JWT_SECRET: "local-development-secret-key"
         NODE_ENV: "development"
@@ -38,8 +39,7 @@ Resources:
   MenuFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: dist/handlers/
-      Handler: menu.handler
+      Handler: handlers/menu.handler
       Events:
         GetMenu:
           Type: Api

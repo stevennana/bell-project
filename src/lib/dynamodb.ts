@@ -1,16 +1,36 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { 
-  DynamoDBDocumentClient, 
-  GetCommand, 
-  PutCommand, 
-  UpdateCommand, 
-  DeleteCommand, 
-  QueryCommand, 
-  ScanCommand 
+import {
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  UpdateCommand,
+  DeleteCommand,
+  QueryCommand,
+  ScanCommand
 } from '@aws-sdk/lib-dynamodb';
 import { MenuRecord, OrderRecord, UserRecord, PosJobRecord, DynamoDBQueryOptions, DynamoDBUpdateOptions } from '../types/database';
 
-const client = new DynamoDBClient({});
+
+function logCommandInfo(action: string, params: Record<string, any>) {
+    const endpoint = process.env.DYNAMODB_ENDPOINT || '(AWS DynamoDB default)';
+    const region = process.env.AWS_REGION || 'ap-northeast-2';
+    console.log(`[DynamoDB] Action=${action}`);
+    console.log(`  Endpoint: ${endpoint}`);
+    console.log(`  Region  : ${region}`);
+    console.log(`  Params  :`, JSON.stringify(params, null, 2));
+}
+
+
+const client = new DynamoDBClient({
+  ...(process.env.DYNAMODB_ENDPOINT && {
+    endpoint: process.env.DYNAMODB_ENDPOINT,
+    region: process.env.AWS_REGION || 'ap-northeast-2',
+    credentials: {
+      accessKeyId: 'dummy',
+      secretAccessKey: 'dummy'
+    }
+  })
+});
 const docClient = DynamoDBDocumentClient.from(client);
 
 export class DynamoDBService {
@@ -37,12 +57,19 @@ export class DynamoDBService {
     table: 'menus' | 'orders' | 'users' | 'pos-jobs',
     key: { [key: string]: any }
   ): Promise<T | null> {
+
+    const params = {
+      TableName: this.getTableName(table),
+      Key: key
+    };
+    logCommandInfo('getItem', params);
+
     try {
       const command = new GetCommand({
         TableName: this.getTableName(table),
         Key: key
       });
-      
+
       const result = await docClient.send(command);
       return (result.Item as T) || null;
     } catch (error) {
@@ -64,7 +91,7 @@ export class DynamoDBService {
         ConditionExpression: conditionExpression,
         ExpressionAttributeNames: expressionAttributeNames
       });
-      
+
       await docClient.send(command);
     } catch (error) {
       console.error(`Error putting item to ${table}:`, error);
@@ -87,7 +114,7 @@ export class DynamoDBService {
         ConditionExpression: options.conditionExpression,
         ReturnValues: options.returnValues || 'ALL_NEW'
       });
-      
+
       const result = await docClient.send(command);
       return result.Attributes as T || null;
     } catch (error) {
@@ -105,7 +132,7 @@ export class DynamoDBService {
         TableName: this.getTableName(table),
         Key: key
       });
-      
+
       await docClient.send(command);
     } catch (error) {
       console.error(`Error deleting item from ${table}:`, error);
@@ -130,7 +157,7 @@ export class DynamoDBService {
         Limit: options.limit,
         ExclusiveStartKey: options.exclusiveStartKey
       });
-      
+
       const result = await docClient.send(command);
       return {
         items: result.Items as T[] || [],
@@ -157,7 +184,7 @@ export class DynamoDBService {
         ExpressionAttributeValues: expressionAttributeValues,
         Limit: limit
       });
-      
+
       const result = await docClient.send(command);
       return {
         items: result.Items as T[] || [],
@@ -189,7 +216,7 @@ export class DynamoDBService {
   }
 
   async getOrdersByRestaurant(
-    restaurantId: string, 
+    restaurantId: string,
     status?: string,
     limit?: number
   ): Promise<OrderRecord[]> {
@@ -225,16 +252,16 @@ export class DynamoDBService {
   async getOrdersForAutoCompletion(): Promise<OrderRecord[]> {
     const autoCompleteTime = new Date();
     autoCompleteTime.setMinutes(autoCompleteTime.getMinutes() - parseInt(process.env.AUTO_COMPLETE_MINUTES || '30'));
-    
+
     const result = await this.scanItems<OrderRecord>('orders',
       '#status = :status AND updatedAt < :cutoffTime',
       { '#status': 'status' },
-      { 
+      {
         ':status': 'READY',
         ':cutoffTime': autoCompleteTime.toISOString()
       }
     );
-    
+
     return result.items;
   }
 }

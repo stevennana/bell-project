@@ -4,6 +4,21 @@
 
 set -e
 
+# Function to create table if it doesn't exist
+create_table_if_not_exists() {
+    local table_name=$1
+    local create_command=$2
+    
+    echo "Checking if table $table_name exists..."
+    if aws dynamodb describe-table --endpoint-url $DYNAMODB_ENDPOINT --table-name $table_name --region $AWS_REGION >/dev/null 2>&1; then
+        echo "✅ Table $table_name already exists, skipping creation"
+    else
+        echo "Creating $table_name table..."
+        eval "$create_command"
+        echo "✅ Table $table_name created successfully"
+    fi
+}
+
 DYNAMODB_ENDPOINT="http://localhost:8000"
 AWS_REGION="ap-northeast-2"
 
@@ -15,8 +30,7 @@ export AWS_SECRET_ACCESS_KEY=dummy
 export AWS_DEFAULT_REGION=$AWS_REGION
 
 # Menus Table
-echo "Creating Menus table..."
-aws dynamodb create-table \
+create_table_if_not_exists "bell-menus-local" "aws dynamodb create-table \
     --endpoint-url $DYNAMODB_ENDPOINT \
     --table-name bell-menus-local \
     --attribute-definitions \
@@ -30,11 +44,10 @@ aws dynamodb create-table \
     --global-secondary-indexes \
         'IndexName=status-createdAt-index,KeySchema=[{AttributeName=status,KeyType=HASH},{AttributeName=createdAt,KeyType=RANGE}],Projection={ProjectionType=ALL},ProvisionedThroughput={ReadCapacityUnits=5,WriteCapacityUnits=5}' \
     --billing-mode PAY_PER_REQUEST \
-    --region $AWS_REGION
+    --region $AWS_REGION"
 
 # Orders Table
-echo "Creating Orders table..."
-aws dynamodb create-table \
+create_table_if_not_exists "bell-orders-local" "aws dynamodb create-table \
     --endpoint-url $DYNAMODB_ENDPOINT \
     --table-name bell-orders-local \
     --attribute-definitions \
@@ -49,11 +62,10 @@ aws dynamodb create-table \
         'IndexName=restaurantId-status-index,KeySchema=[{AttributeName=restaurantId,KeyType=HASH},{AttributeName=status,KeyType=RANGE}],Projection={ProjectionType=ALL},ProvisionedThroughput={ReadCapacityUnits=5,WriteCapacityUnits=5}' \
         'IndexName=restaurantId-createdAt-index,KeySchema=[{AttributeName=restaurantId,KeyType=HASH},{AttributeName=createdAt,KeyType=RANGE}],Projection={ProjectionType=ALL},ProvisionedThroughput={ReadCapacityUnits=5,WriteCapacityUnits=5}' \
     --billing-mode PAY_PER_REQUEST \
-    --region $AWS_REGION
+    --region $AWS_REGION"
 
 # Users Table
-echo "Creating Users table..."
-aws dynamodb create-table \
+create_table_if_not_exists "bell-users-local" "aws dynamodb create-table \
     --endpoint-url $DYNAMODB_ENDPOINT \
     --table-name bell-users-local \
     --attribute-definitions \
@@ -63,11 +75,10 @@ aws dynamodb create-table \
         AttributeName=userId,KeyType=HASH \
         AttributeName=type,KeyType=RANGE \
     --billing-mode PAY_PER_REQUEST \
-    --region $AWS_REGION
+    --region $AWS_REGION"
 
 # POS Jobs Table
-echo "Creating POS Jobs table..."
-aws dynamodb create-table \
+create_table_if_not_exists "bell-pos-jobs-local" "aws dynamodb create-table \
     --endpoint-url $DYNAMODB_ENDPOINT \
     --table-name bell-pos-jobs-local \
     --attribute-definitions \
@@ -77,7 +88,7 @@ aws dynamodb create-table \
         AttributeName=jobId,KeyType=HASH \
         AttributeName=orderId,KeyType=RANGE \
     --billing-mode PAY_PER_REQUEST \
-    --region $AWS_REGION
+    --region $AWS_REGION"
 
 echo "✅ All tables created successfully!"
 echo "📋 Tables created:"
