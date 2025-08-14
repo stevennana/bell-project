@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Bell Project - Local Development Template
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: nodejs18.x
+    Environment:
+      Variables:
+        MENUS_TABLE: bell-menus-local
+        ORDERS_TABLE: bell-orders-local
+        USERS_TABLE: bell-users-local
+        POS_JOBS_TABLE: bell-pos-jobs-local
+        AUTO_COMPLETE_MINUTES: 30
+        CART_TTL_MINUTES: 10
+        REFUND_CAP_PERCENT: 5
+        ALLOWED_PAYMENT_METHODS: "naverpay,kakaopay"
+        POS_PRINTER_COUNT: 1
+        DYNAMODB_ENDPOINT: "http://host.docker.internal:8000"
+        AWS_REGION: ap-northeast-2
+        JWT_SECRET: "local-development-secret-key"
+        NODE_ENV: "development"
+
+Resources:
+  # API Gateway
+  BellApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: local
+      Cors:
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+  # Lambda Functions
+  MenuFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/handlers/
+      Handler: menu.handler
+      Events:
+        GetMenu:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /menu
+            Method: get
+        PostMenu:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /menu
+            Method: post
+
+  OrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/handlers/
+      Handler: order.handler
+      Events:
+        PostOrder:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /order
+            Method: post
+        GetOrder:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /order/{orderId}
+            Method: get
+        DeleteOrder:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /order/{orderId}
+            Method: delete
+
+  PosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/handlers/
+      Handler: pos.handler
+      Events:
+        PostPosPrint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /pos/print
+            Method: post
+        GetPosPrint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /pos/print/{jobId}
+            Method: get
+        PostPosReprint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /pos/reprint
+            Method: post
+
+  PaymentCallbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/handlers/
+      Handler: payment-callback.handler
+      Events:
+        NaverPayCallback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /payment/callback/naverpay
+            Method: post
+        KakaoPayCallback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /payment/callback/kakaopay
+            Method: post
+
+  # Note: AutoCompleteFunction excluded from local development
+  # as it requires EventBridge scheduling
+
+Outputs:
+  BellApiUrl:
+    Description: "API Gateway endpoint URL for local development"
+    Value: !Sub "http://localhost:3000"

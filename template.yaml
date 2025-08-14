@@ -1,0 +1,290 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Bell Project - QR-based restaurant ordering system
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: nodejs18.x
+    Environment:
+      Variables:
+        MENUS_TABLE: !Ref MenusTable
+        ORDERS_TABLE: !Ref OrdersTable
+        USERS_TABLE: !Ref UsersTable
+        POS_JOBS_TABLE: !Ref PosJobsTable
+        AUTO_COMPLETE_MINUTES: 30
+        CART_TTL_MINUTES: 10
+        REFUND_CAP_PERCENT: 5
+        ALLOWED_PAYMENT_METHODS: "naverpay,kakaopay"
+        POS_PRINTER_COUNT: 1
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+
+Resources:
+  # DynamoDB Tables
+  MenusTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "bell-menus-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: restaurantId
+          AttributeType: S
+        - AttributeName: version
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: restaurantId
+          KeyType: HASH
+        - AttributeName: version
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: status-createdAt-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "bell-orders-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: orderId
+          AttributeType: S
+        - AttributeName: restaurantId
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orderId
+          KeyType: HASH
+        - AttributeName: restaurantId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: restaurantId-status-index
+          KeySchema:
+            - AttributeName: restaurantId
+              KeyType: HASH
+            - AttributeName: status
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: restaurantId-createdAt-index
+          KeySchema:
+            - AttributeName: restaurantId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "bell-users-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: type
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: type
+          KeyType: RANGE
+
+  PosJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "bell-pos-jobs-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+        - AttributeName: orderId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+        - AttributeName: orderId
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  # API Gateway
+  BellApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+  # Lambda Functions
+  MenuFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/handlers/
+      Handler: menu.handler
+      Events:
+        GetMenu:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /menu
+            Method: get
+        PostMenu:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /menu
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MenusTable
+
+  OrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/handlers/
+      Handler: order.handler
+      Events:
+        PostOrder:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /order
+            Method: post
+        GetOrder:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /order/{orderId}
+            Method: get
+        DeleteOrder:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /order/{orderId}
+            Method: delete
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref MenusTable
+
+  PosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/handlers/
+      Handler: pos.handler
+      Events:
+        PostPosPrint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /pos/print
+            Method: post
+        GetPosPrint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /pos/print/{jobId}
+            Method: get
+        PostPosReprint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /pos/reprint
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PosJobsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref OrdersTable
+
+  PaymentCallbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/handlers/
+      Handler: payment-callback.handler
+      Events:
+        NaverPayCallback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /payment/callback/naverpay
+            Method: post
+        KakaoPayCallback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /payment/callback/kakaopay
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+
+  AutoCompleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/handlers/
+      Handler: auto-complete.handler
+      Events:
+        ScheduledAutoComplete:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: "rate(5 minutes)"
+            Description: "Auto-complete orders after 30 minutes"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+
+  # S3 Bucket for menu images
+  MenuImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "bell-menu-images-${Environment}-${AWS::AccountId}"
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, PUT, POST]
+            AllowedOrigins: ['*']
+
+Outputs:
+  BellApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${BellApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+  
+  MenusTableName:
+    Description: "DynamoDB Menus table name"
+    Value: !Ref MenusTable
+  
+  OrdersTableName:
+    Description: "DynamoDB Orders table name"  
+    Value: !Ref OrdersTable
+    
+  MenuImagesBucketName:
+    Description: "S3 bucket for menu images"
+    Value: !Ref MenuImagesBucket

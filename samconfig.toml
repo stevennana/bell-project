@@ -1,0 +1,38 @@
+# SAM configuration file for different environments
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "bell-project-dev"
+resolve_s3 = true
+s3_prefix = "bell-project-dev"
+region = "ap-northeast-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=dev"
+
+[dev.deploy.parameters]
+stack_name = "bell-project-dev"
+resolve_s3 = true
+s3_prefix = "bell-project-dev"
+region = "ap-northeast-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=dev"
+
+[staging.deploy.parameters]
+stack_name = "bell-project-staging"
+resolve_s3 = true
+s3_prefix = "bell-project-staging"
+region = "ap-northeast-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=staging"
+
+[prod.deploy.parameters]
+stack_name = "bell-project-prod"
+resolve_s3 = true
+s3_prefix = "bell-project-prod"
+region = "ap-northeast-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=prod"

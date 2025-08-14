@@ -1,0 +1,827 @@
+openapi: 3.0.3
+info:
+  title: Bell Project API
+  description: QR-based restaurant ordering system API
+  version: 1.0.0
+  contact:
+    name: Bell Project Team
+    email: support@bellproject.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.bellproject.com/dev
+    description: Development server
+  - url: https://api.bellproject.com/prod
+    description: Production server
+
+tags:
+  - name: menu
+    description: Menu management operations
+  - name: order
+    description: Order management operations
+  - name: pos
+    description: POS system operations
+  - name: payment
+    description: Payment callback operations
+
+paths:
+  /menu:
+    get:
+      tags:
+        - menu
+      summary: Get restaurant menu
+      description: Retrieve the latest confirmed menu for a restaurant
+      parameters:
+        - name: restaurantId
+          in: query
+          required: true
+          description: Unique restaurant identifier
+          schema:
+            type: string
+            example: "rest_001"
+      responses:
+        '200':
+          description: Menu retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetMenuResponse'
+        '400':
+          description: Bad request - Restaurant ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Menu not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - menu
+      summary: Create or update menu
+      description: Create a new menu version or update existing menu
+      parameters:
+        - name: restaurantId
+          in: query
+          required: true
+          description: Unique restaurant identifier
+          schema:
+            type: string
+            example: "rest_001"
+        - name: confirm
+          in: query
+          required: false
+          description: Whether to confirm the menu immediately
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostMenuRequest'
+      responses:
+        '201':
+          description: Menu created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostMenuResponse'
+        '400':
+          description: Bad request - Invalid menu data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict - Menu version already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /order:
+    post:
+      tags:
+        - order
+      summary: Create new order
+      description: Create a new order with menu items and customer information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostOrderRequest'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostOrderResponse'
+        '400':
+          description: Bad request - Invalid order data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Menu not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '410':
+          description: Menu item not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable entity - Invalid menu item or price mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /order/{orderId}:
+    get:
+      tags:
+        - order
+      summary: Get order details
+      description: Retrieve details for a specific order
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Unique order identifier
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: restaurantId
+          in: query
+          required: true
+          description: Restaurant identifier for the order
+          schema:
+            type: string
+            example: "rest_001"
+      responses:
+        '200':
+          description: Order retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetOrderResponse'
+        '400':
+          description: Bad request - Missing required parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - order
+      summary: Cancel order
+      description: Cancel an existing order with potential refund calculation
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Unique order identifier
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: restaurantId
+          in: query
+          required: true
+          description: Restaurant identifier for the order
+          schema:
+            type: string
+            example: "rest_001"
+      responses:
+        '200':
+          description: Order cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteOrderResponse'
+        '400':
+          description: Bad request - Cannot cancel completed order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pos/print:
+    post:
+      tags:
+        - pos
+      summary: Create POS print job
+      description: Submit a print job to the POS system
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostPosPrintRequest'
+      responses:
+        '201':
+          description: Print job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPosPrintResponse'
+        '400':
+          description: Bad request - Invalid print job data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pos/print/{jobId}:
+    get:
+      tags:
+        - pos
+      summary: Get POS print job status
+      description: Check the status of a print job
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Print job identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Print job status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPosPrintResponse'
+        '404':
+          description: Print job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pos/reprint:
+    post:
+      tags:
+        - pos
+      summary: Reprint POS job
+      description: Reprint an existing print job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostPosReprintRequest'
+      responses:
+        '201':
+          description: Reprint job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPosPrintResponse'
+        '400':
+          description: Bad request - Invalid reprint data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payment/callback/naverpay:
+    post:
+      tags:
+        - payment
+      summary: NaverPay payment callback
+      description: Handle payment callback from NaverPay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCallbackRequest'
+      responses:
+        '200':
+          description: Callback processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCallbackResponse'
+        '400':
+          description: Bad request - Invalid callback data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payment/callback/kakaopay:
+    post:
+      tags:
+        - payment
+      summary: KakaoPay payment callback
+      description: Handle payment callback from KakaoPay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCallbackRequest'
+      responses:
+        '200':
+          description: Callback processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCallbackResponse'
+        '400':
+          description: Bad request - Invalid callback data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    MenuItem:
+      type: object
+      required:
+        - id
+        - name
+        - price
+        - category
+        - available
+      properties:
+        id:
+          type: string
+          example: "item_001"
+        name:
+          type: string
+          example: "Classic Burger"
+        price:
+          type: number
+          format: float
+          minimum: 0
+          example: 12.99
+        description:
+          type: string
+          example: "Juicy beef patty with lettuce, tomato, and onion"
+        category:
+          type: string
+          example: "burgers"
+        available:
+          type: boolean
+          example: true
+        image:
+          type: string
+          format: uri
+          example: "https://example.com/burger.jpg"
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuItemOption'
+
+    MenuItemOption:
+      type: object
+      required:
+        - id
+        - name
+        - required
+        - choices
+      properties:
+        id:
+          type: string
+          example: "size"
+        name:
+          type: string
+          example: "Size"
+        required:
+          type: boolean
+          example: true
+        choices:
+          type: array
+          items:
+            $ref: '#/components/schemas/OptionChoice'
+
+    OptionChoice:
+      type: object
+      required:
+        - id
+        - name
+        - priceModifier
+      properties:
+        id:
+          type: string
+          example: "large"
+        name:
+          type: string
+          example: "Large"
+        priceModifier:
+          type: number
+          format: float
+          example: 2.00
+
+    OrderItem:
+      type: object
+      required:
+        - menuItemId
+        - quantity
+        - price
+        - selectedOptions
+      properties:
+        menuItemId:
+          type: string
+          example: "item_001"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        price:
+          type: number
+          format: float
+          minimum: 0
+          example: 25.98
+        selectedOptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SelectedOption'
+
+    SelectedOption:
+      type: object
+      required:
+        - optionId
+        - choiceId
+        - priceModifier
+      properties:
+        optionId:
+          type: string
+          example: "size"
+        choiceId:
+          type: string
+          example: "large"
+        priceModifier:
+          type: number
+          format: float
+          example: 2.00
+
+    CustomerInfo:
+      type: object
+      required:
+        - name
+        - phone
+      properties:
+        name:
+          type: string
+          example: "John Doe"
+        phone:
+          type: string
+          example: "010-1234-5678"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+
+    PostMenuRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuItem'
+          minItems: 1
+
+    PostMenuResponse:
+      type: object
+      properties:
+        version:
+          type: string
+          example: "v1692123456789"
+        status:
+          type: string
+          enum: [DRAFT, CONFIRMED]
+          example: "DRAFT"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:30:45.123Z"
+
+    GetMenuResponse:
+      type: object
+      properties:
+        menu:
+          type: object
+          properties:
+            restaurantId:
+              type: string
+              example: "rest_001"
+            version:
+              type: string
+              example: "v1692123456789"
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MenuItem'
+            status:
+              type: string
+              enum: [DRAFT, CONFIRMED]
+              example: "CONFIRMED"
+            createdAt:
+              type: string
+              format: date-time
+              example: "2023-08-15T12:30:45.123Z"
+            confirmedAt:
+              type: string
+              format: date-time
+              example: "2023-08-15T12:35:45.123Z"
+
+    PostOrderRequest:
+      type: object
+      required:
+        - restaurantId
+        - items
+        - customerInfo
+      properties:
+        restaurantId:
+          type: string
+          example: "rest_001"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+          minItems: 1
+        customerInfo:
+          $ref: '#/components/schemas/CustomerInfo'
+
+    PostOrderResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [CREATED]
+          example: "CREATED"
+        totalAmount:
+          type: number
+          format: float
+          example: 25.98
+        paymentUrl:
+          type: string
+          format: uri
+          example: "https://payment.example.com/pay?orderId=550e8400-e29b-41d4-a716-446655440000"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:30:45.123Z"
+
+    GetOrderResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        restaurantId:
+          type: string
+          example: "rest_001"
+        status:
+          type: string
+          enum: [CREATED, PAID, COOKING, READY, COMPLETED, CANCELLED]
+          example: "PAID"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        totalAmount:
+          type: number
+          format: float
+          example: 25.98
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:30:45.123Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:35:45.123Z"
+        paymentInfo:
+          type: object
+          properties:
+            method:
+              type: string
+              enum: [naverpay, kakaopay]
+              example: "naverpay"
+            transactionId:
+              type: string
+              example: "txn_123456789"
+            paidAt:
+              type: string
+              format: date-time
+              example: "2023-08-15T12:35:45.123Z"
+
+    DeleteOrderResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [CANCELLED]
+          example: "CANCELLED"
+        refundAmount:
+          type: number
+          format: float
+          example: 25.98
+        refundMethod:
+          type: string
+          example: "original"
+
+    PostPosPrintRequest:
+      type: object
+      required:
+        - orderId
+        - restaurantId
+        - printerType
+        - items
+      properties:
+        orderId:
+          type: string
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        restaurantId:
+          type: string
+          example: "rest_001"
+        printerType:
+          type: string
+          enum: [receipt, kitchen]
+          example: "receipt"
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "Classic Burger"
+              quantity:
+                type: integer
+                example: 2
+              price:
+                type: number
+                format: float
+                example: 12.99
+              options:
+                type: array
+                items:
+                  type: string
+                example: ["Large", "Extra Cheese"]
+
+    PostPosPrintResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+          example: "job_550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [QUEUED, PRINTING, COMPLETED, FAILED]
+          example: "QUEUED"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:30:45.123Z"
+
+    GetPosPrintResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+          example: "job_550e8400-e29b-41d4-a716-446655440000"
+        orderId:
+          type: string
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [QUEUED, PRINTING, COMPLETED, FAILED]
+          example: "COMPLETED"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:30:45.123Z"
+        completedAt:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:31:45.123Z"
+
+    PostPosReprintRequest:
+      type: object
+      required:
+        - originalJobId
+      properties:
+        originalJobId:
+          type: string
+          format: uuid
+          example: "job_550e8400-e29b-41d4-a716-446655440000"
+
+    PaymentCallbackRequest:
+      type: object
+      required:
+        - orderId
+        - transactionId
+        - status
+        - amount
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        transactionId:
+          type: string
+          example: "txn_123456789"
+        status:
+          type: string
+          enum: [SUCCESS, FAILED, CANCELLED]
+          example: "SUCCESS"
+        amount:
+          type: number
+          format: float
+          example: 25.98
+        timestamp:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:35:45.123Z"
+
+    PaymentCallbackResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [PROCESSED, REJECTED]
+          example: "PROCESSED"
+        message:
+          type: string
+          example: "Payment processed successfully"
+
+    ErrorResponse:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+      properties:
+        type:
+          type: string
+          format: uri
+          example: "https://httpstatuses.com/400"
+        title:
+          type: string
+          example: "Bad Request"
+        status:
+          type: integer
+          example: 400
+        detail:
+          type: string
+          example: "The request is missing required parameters"
+        instance:
+          type: string
+          format: uri
+          example: "/menu"

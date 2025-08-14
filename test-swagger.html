@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bell Project API - Swagger UI</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+        body {
+            margin: 0;
+            background: #fafafa;
+        }
+        .header {
+            background: #1f2937;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        .header p {
+            margin: 0.5rem 0 0 0;
+            opacity: 0.8;
+        }
+        .server-info {
+            background: #e5e7eb;
+            padding: 1rem;
+            margin: 1rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid #3b82f6;
+        }
+        .server-info h3 {
+            margin: 0 0 0.5rem 0;
+            color: #1f2937;
+        }
+        .server-info p {
+            margin: 0.25rem 0;
+            color: #4b5563;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔔 Bell Project API</h1>
+        <p>QR-based Restaurant Ordering System - Interactive API Documentation</p>
+    </div>
+
+    <div class="server-info">
+        <h3>🚀 Getting Started</h3>
+        <p><strong>1.</strong> Make sure your local development environment is running:</p>
+        <p>&nbsp;&nbsp;&nbsp;&nbsp;<code>./dev-local.sh</code></p>
+        <p><strong>2.</strong> Start the API Gateway local server:</p>
+        <p>&nbsp;&nbsp;&nbsp;&nbsp;<code>sam local start-api --port 3000 --env-vars env-local.json</code></p>
+        <p><strong>3.</strong> The API will be available at: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></p>
+        <p><strong>4.</strong> DynamoDB Admin interface: <a href="http://localhost:8001" target="_blank">http://localhost:8001</a></p>
+    </div>
+
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {
+            const ui = SwaggerUIBundle({
+                url: './swagger.yaml',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                tryItOutEnabled: true,
+                requestInterceptor: (request) => {
+                    // Add custom headers or modify requests if needed
+                    console.log('API Request:', request);
+                    return request;
+                },
+                responseInterceptor: (response) => {
+                    // Log responses for debugging
+                    console.log('API Response:', response);
+                    return response;
+                },
+                // Default server URL
+                servers: [
+                    {
+                        url: 'http://localhost:3000',
+                        description: 'Local Development Server'
+                    }
+                ]
+            });
+
+            window.ui = ui;
+
+            // Add some helpful JavaScript for testing
+            window.bellApiHelpers = {
+                generateRestaurantId: () => `rest_${Date.now()}`,
+                generateTestMenu: () => ({
+                    items: [
+                        {
+                            id: "burger_001",
+                            name: "Classic Beef Burger",
+                            price: 12.99,
+                            description: "Juicy beef patty with fresh lettuce, tomato, and onion",
+                            category: "burgers",
+                            available: true,
+                            image: "https://example.com/burger.jpg",
+                            options: [
+                                {
+                                    id: "size",
+                                    name: "Size",
+                                    required: true,
+                                    choices: [
+                                        {
+                                            id: "regular",
+                                            name: "Regular",
+                                            priceModifier: 0
+                                        },
+                                        {
+                                            id: "large",
+                                            name: "Large (+$2.00)",
+                                            priceModifier: 2.00
+                                        }
+                                    ]
+                                },
+                                {
+                                    id: "extras",
+                                    name: "Extra Toppings",
+                                    required: false,
+                                    choices: [
+                                        {
+                                            id: "cheese",
+                                            name: "Extra Cheese (+$1.50)",
+                                            priceModifier: 1.50
+                                        },
+                                        {
+                                            id: "bacon",
+                                            name: "Bacon (+$2.50)",
+                                            priceModifier: 2.50
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            id: "wings_001",
+                            name: "Buffalo Wings",
+                            price: 8.99,
+                            description: "Crispy chicken wings tossed in spicy buffalo sauce",
+                            category: "appetizers",
+                            available: true,
+                            options: [
+                                {
+                                    id: "spice_level",
+                                    name: "Spice Level",
+                                    required: true,
+                                    choices: [
+                                        {
+                                            id: "mild",
+                                            name: "Mild",
+                                            priceModifier: 0
+                                        },
+                                        {
+                                            id: "hot",
+                                            name: "Hot",
+                                            priceModifier: 0
+                                        },
+                                        {
+                                            id: "extra_hot",
+                                            name: "Extra Hot",
+                                            priceModifier: 0
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            id: "drink_001",
+                            name: "Craft Cola",
+                            price: 2.99,
+                            description: "House-made cola with natural ingredients",
+                            category: "beverages",
+                            available: true,
+                            options: []
+                        }
+                    ]
+                }),
+                generateTestOrder: (restaurantId) => ({
+                    restaurantId: restaurantId,
+                    items: [
+                        {
+                            menuItemId: "burger_001",
+                            quantity: 1,
+                            price: 14.99,
+                            selectedOptions: [
+                                {
+                                    optionId: "size",
+                                    choiceId: "large",
+                                    priceModifier: 2.00
+                                }
+                            ]
+                        },
+                        {
+                            menuItemId: "wings_001",
+                            quantity: 1,
+                            price: 8.99,
+                            selectedOptions: [
+                                {
+                                    optionId: "spice_level",
+                                    choiceId: "hot",
+                                    priceModifier: 0
+                                }
+                            ]
+                        }
+                    ],
+                    customerInfo: {
+                        name: "John Doe",
+                        phone: "010-1234-5678",
+                        email: "john.doe@example.com"
+                    }
+                }),
+                logToConsole: (message, data) => {
+                    console.log(`🔔 Bell API: ${message}`, data);
+                }
+            };
+
+            console.log('🔔 Bell Project API Documentation Loaded!');
+            console.log('💡 Tip: Use window.bellApiHelpers for test data generation');
+            console.log('📋 Available helpers:', Object.keys(window.bellApiHelpers));
+        };
+    </script>
+</body>
+</html>
