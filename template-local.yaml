@@ -31,7 +31,7 @@ Resources:
     Properties:
       StageName: local
       Cors:
-        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
         AllowOrigin: "'*'"
 
@@ -53,6 +53,24 @@ Resources:
             RestApiId: !Ref BellApi
             Path: /menu
             Method: post
+        GetDraftMenu:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /menu/draft
+            Method: get
+        GetPublishedMenu:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /menu/published
+            Method: get
+        ConfirmMenu:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /menu/{version}/confirm
+            Method: put
 
   OrderFunction:
     Type: AWS::Serverless::Function
@@ -122,6 +140,18 @@ Resources:
             RestApiId: !Ref BellApi
             Path: /payment/callback/kakaopay
             Method: post
+
+  StatsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/stats.handler
+      Events:
+        GetDashboardStats:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /stats/dashboard
+            Method: get
 
   # Note: AutoCompleteFunction excluded from local development
   # as it requires EventBridge scheduling

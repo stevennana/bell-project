@@ -2,6 +2,24 @@
 
 A serverless restaurant ordering and payment system built with AWS Lambda, DynamoDB, and API Gateway. Customers scan QR codes to access menus, place orders, and make payments via NaverPay/KakaoPay, while restaurant owners manage orders through a dashboard with POS printer integration.
 
+## Project Status
+
+✅ **Backend: COMPLETED** - Full serverless API implementation with AWS Lambda
+- All API endpoints implemented and tested
+- DynamoDB tables and operations configured
+- Payment integration (NaverPay/KakaoPay) ready
+- POS printer integration implemented
+- Local development environment configured
+- Production deployment scripts ready
+
+✅ **Frontend: COMPLETED** - Two separate React applications for different personas
+- **Customer Frontend**: Mobile-first QR ordering experience (Port 3001)
+- **Owner Dashboard**: Desktop/mobile restaurant management system (Port 3002)
+- Tailwind CSS styling with responsive design
+- TypeScript with shared API types
+- React Router for navigation
+- TanStack Query for API state management
+
 ## Architecture
 
 - **Frontend**: Static site (S3 + CloudFront)
@@ -41,7 +59,7 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 
 ```
 /
-├── src/
+├── src/                   # Backend (AWS Lambda)
 │   ├── handlers/          # Lambda function handlers
 │   │   ├── menu.ts       # GET/POST /menu
 │   │   ├── order.ts      # POST/GET/DELETE /order
@@ -58,9 +76,29 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 │       ├── api.ts        # API request/response types
 │       ├── database.ts   # DynamoDB entity types
 │       └── payment.ts    # Payment provider types
+├── frontend/             # Frontend Applications
+│   ├── customer/         # Customer QR Ordering (Mobile-first)
+│   │   ├── src/
+│   │   │   ├── components/ # React components
+│   │   │   ├── pages/      # Page components
+│   │   │   ├── hooks/      # Custom hooks
+│   │   │   ├── types/      # TypeScript types
+│   │   │   └── utils/      # Utility functions
+│   │   ├── package.json    # Dependencies (React + Vite)
+│   │   └── tailwind.config.js # Mobile-first styling
+│   └── owner/            # Owner Dashboard (Desktop + Mobile)
+│       ├── src/
+│       │   ├── components/ # React components
+│       │   ├── pages/      # Page components
+│       │   ├── hooks/      # Custom hooks
+│       │   ├── types/      # TypeScript types
+│       │   └── utils/      # Utility functions
+│       ├── package.json    # Dependencies (React + Vite + Lucide)
+│       └── tailwind.config.js # Dashboard styling
 ├── template.yaml         # SAM infrastructure template
 ├── samconfig.toml        # SAM deployment configuration
-└── package.json          # Dependencies and scripts
+├── dev-frontend.sh       # Start both frontends
+└── package.json          # Backend dependencies
 ```
 
 ## Quick Start
@@ -73,25 +111,38 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 
 ### Installation
 
-1. **Clone and install dependencies**:
+1. **Clone and install backend dependencies**:
    ```bash
    npm install
    ```
 
-2. **Configure environment variables**:
+2. **Install frontend dependencies**:
    ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your configuration
+   cd frontend/customer && npm install
+   cd ../owner && npm install
+   cd ../..
    ```
 
-3. **Build the project**:
+3. **Configure environment variables**:
+   ```bash
+   # Backend
+   cp .env.example .env.local
+   
+   # Frontend
+   cp frontend/customer/.env.example frontend/customer/.env.local
+   cp frontend/owner/.env.example frontend/owner/.env.local
+   ```
+
+4. **Build the backend**:
    ```bash
    npm run build
    ```
 
 ### Local Development
 
-1. **Start local development environment**:
+#### Backend Development
+
+1. **Start local backend environment**:
    ```bash
    ./dev-local.sh
    ```
@@ -106,18 +157,47 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
    sam local start-api --port 3000 --env-vars env-local.json
    ```
 
-3. **Test API endpoints**:
-   ```bash
-   curl http://localhost:3000/menu?restaurantId=test-restaurant
-   ```
-
-4. **View DynamoDB tables**:
+3. **View DynamoDB tables**:
    Open http://localhost:8001 in your browser
 
-5. **Stop local environment**:
+#### Frontend Development
+
+4. **Start both frontends** (in a new terminal):
    ```bash
-   ./dev-stop.sh
+   ./dev-frontend.sh
    ```
+   This will start:
+   - **Customer Frontend**: http://localhost:3001
+   - **Owner Dashboard**: http://localhost:3002
+
+**Or start them individually:**
+
+- **Customer frontend only**:
+  ```bash
+  cd frontend/customer && npm run dev
+  ```
+
+- **Owner dashboard only**:
+  ```bash
+  cd frontend/owner && npm run dev
+  ```
+
+#### Complete Development Environment
+
+Access all services:
+- **🔧 Backend API**: http://localhost:3000
+- **🛍️ Customer Frontend**: http://localhost:3001  
+- **👨‍💼 Owner Dashboard**: http://localhost:3002
+- **🗄️ DynamoDB Admin**: http://localhost:8001
+
+#### Stopping Development
+
+```bash
+# Stop backend
+./dev-stop.sh
+
+# Stop frontends (Ctrl+C in terminal running dev-frontend.sh)
+```
 
 ### Production Deployment
 

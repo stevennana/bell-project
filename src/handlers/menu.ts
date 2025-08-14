@@ -15,7 +15,7 @@ export const handler = async (
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   };
 
@@ -33,6 +33,18 @@ export const handler = async (
 
     if (method === 'GET' && path === '/menu') {
       return await handleGetMenu(event, headers);
+    }
+
+    if (method === 'GET' && path === '/menu/draft') {
+      return await handleGetDraftMenu(event, headers);
+    }
+
+    if (method === 'GET' && path === '/menu/published') {
+      return await handleGetPublishedMenu(event, headers);
+    }
+
+    if (method === 'PUT' && path.startsWith('/menu/') && path.endsWith('/confirm')) {
+      return await handleConfirmMenu(event, headers);
     }
 
     if (method === 'POST' && path === '/menu') {
@@ -279,6 +291,254 @@ async function handlePostMenu(
       };
     }
 
+    throw error;
+  }
+}
+
+async function handleGetDraftMenu(
+  event: APIGatewayProxyEvent,
+  headers: { [key: string]: string }
+): Promise<APIGatewayProxyResult> {
+  const restaurantId = event.queryStringParameters?.restaurantId;
+  
+  if (!restaurantId) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        type: 'https://httpstatuses.com/400',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'Restaurant ID is required'
+      } as ErrorResponse)
+    };
+  }
+
+  // Get the latest draft menu
+  const draftMenus = await db.queryItems<MenuRecord>('menus', {
+    indexName: 'status-createdAt-index',
+    keyConditionExpression: '#status = :status',
+    filterExpression: 'restaurantId = :restaurantId',
+    expressionAttributeNames: {
+      '#status': 'status'
+    },
+    expressionAttributeValues: {
+      ':status': 'DRAFT',
+      ':restaurantId': restaurantId
+    },
+    scanIndexForward: false, // Latest first
+    limit: 1
+  });
+  
+  if (draftMenus.items.length === 0) {
+    return {
+      statusCode: 404,
+      headers,
+      body: JSON.stringify({
+        type: 'https://httpstatuses.com/404',
+        title: 'Not Found',
+        status: 404,
+        detail: 'No draft menu found for this restaurant'
+      } as ErrorResponse)
+    };
+  }
+
+  const menu = draftMenus.items[0];
+  const response: GetMenuResponse = {
+    menu: {
+      restaurantId: menu.restaurantId,
+      version: menu.version,
+      items: menu.items,
+      status: menu.status,
+      createdAt: menu.createdAt,
+      confirmedAt: menu.confirmedAt
+    }
+  };
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify(response)
+  };
+}
+
+async function handleGetPublishedMenu(
+  event: APIGatewayProxyEvent,
+  headers: { [key: string]: string }
+): Promise<APIGatewayProxyResult> {
+  const restaurantId = event.queryStringParameters?.restaurantId;
+  
+  if (!restaurantId) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        type: 'https://httpstatuses.com/400',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'Restaurant ID is required'
+      } as ErrorResponse)
+    };
+  }
+
+  const menu = await db.getLatestMenu(restaurantId); // This gets CONFIRMED menu
+  
+  if (!menu) {
+    return {
+      statusCode: 404,
+      headers,
+      body: JSON.stringify({
+        type: 'https://httpstatuses.com/404',
+        title: 'Not Found',
+        status: 404,
+        detail: 'No published menu found for this restaurant'
+      } as ErrorResponse)
+    };
+  }
+
+  const response: GetMenuResponse = {
+    menu: {
+      restaurantId: menu.restaurantId,
+      version: menu.version,
+      items: menu.items,
+      status: menu.status,
+      createdAt: menu.createdAt,
+      confirmedAt: menu.confirmedAt
+    }
+  };
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify(response)
+  };
+}
+
+async function handleConfirmMenu(
+  event: APIGatewayProxyEvent,
+  headers: { [key: string]: string }
+): Promise<APIGatewayProxyResult> {
+  const restaurantId = event.queryStringParameters?.restaurantId;
+  
+  if (!restaurantId) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        type: 'https://httpstatuses.com/400',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'Restaurant ID is required'
+      } as ErrorResponse)
+    };
+  }
+
+  // Extract version from path: /menu/{version}/confirm
+  const pathParts = event.path.split('/');
+  const version = pathParts[2];
+  
+  if (!version) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        type: 'https://httpstatuses.com/400',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'Version is required'
+      } as ErrorResponse)
+    };
+  }
+
+  try {
+    // Get the menu to confirm
+    const menuToConfirm = await db.getItem<MenuRecord>('menus', {
+      restaurantId,
+      version
+    });
+
+    if (!menuToConfirm) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({
+          type: 'https://httpstatuses.com/404',
+          title: 'Not Found',
+          status: 404,
+          detail: 'Menu version not found'
+        } as ErrorResponse)
+      };
+    }
+
+    if (menuToConfirm.status === 'CONFIRMED') {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          type: 'https://httpstatuses.com/400',
+          title: 'Bad Request',
+          status: 400,
+          detail: 'Menu is already confirmed'
+        } as ErrorResponse)
+      };
+    }
+
+    const now = new Date().toISOString();
+
+    // Set all existing confirmed menus to draft
+    const existingMenus = await db.queryItems<MenuRecord>('menus', {
+      keyConditionExpression: 'restaurantId = :restaurantId',
+      expressionAttributeValues: {
+        ':restaurantId': restaurantId
+      }
+    });
+
+    for (const menu of existingMenus.items) {
+      if (menu.status === 'CONFIRMED') {
+        await db.updateItem('menus', 
+          { restaurantId: menu.restaurantId, version: menu.version },
+          {
+            updateExpression: 'SET #status = :status',
+            expressionAttributeNames: {
+              '#status': 'status'
+            },
+            expressionAttributeValues: {
+              ':status': 'DRAFT'
+            }
+          }
+        );
+      }
+    }
+
+    // Confirm the target menu
+    await db.updateItem('menus',
+      { restaurantId, version },
+      {
+        updateExpression: 'SET #status = :status, confirmedAt = :confirmedAt',
+        expressionAttributeNames: {
+          '#status': 'status'
+        },
+        expressionAttributeValues: {
+          ':status': 'CONFIRMED',
+          ':confirmedAt': now
+        }
+      }
+    );
+
+    const response: PostMenuResponse = {
+      version,
+      status: 'CONFIRMED',
+      createdAt: menuToConfirm.createdAt
+    };
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(response)
+    };
+
+  } catch (error) {
+    console.error('Error confirming menu:', error);
     throw error;
   }
 }

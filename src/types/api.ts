@@ -152,6 +152,31 @@ export interface APIGatewayProxyEvent {
   };
 }
 
+export interface GetDashboardStatsResponse {
+  todayOrders: number;
+  todayRevenue: number;
+  activeOrders: number;
+  avgOrderTime: number;
+  pendingOrders: number;
+}
+
+export type OrderStatus = 'CREATED' | 'PAID' | 'CONFIRMED' | 'COOKING' | 'READY' | 'COMPLETED' | 'CANCELLED';
+
+export interface Order {
+  orderId: string;
+  restaurantId: string;
+  status: OrderStatus;
+  items: OrderItem[];
+  totalAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  paymentInfo?: {
+    method: string;
+    transactionId: string;
+    paidAt: string;
+  };
+}
+
 export interface APIGatewayProxyResult {
   statusCode: number;
   headers?: { [key: string]: string };
