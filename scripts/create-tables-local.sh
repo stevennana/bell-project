@@ -90,11 +90,23 @@ create_table_if_not_exists "bell-pos-jobs-local" "aws dynamodb create-table \
     --billing-mode PAY_PER_REQUEST \
     --region $AWS_REGION"
 
+# Restaurants Table
+create_table_if_not_exists "bell-restaurants-local" "aws dynamodb create-table \
+    --endpoint-url $DYNAMODB_ENDPOINT \
+    --table-name bell-restaurants-local \
+    --attribute-definitions \
+        AttributeName=restaurantId,AttributeType=S \
+    --key-schema \
+        AttributeName=restaurantId,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST \
+    --region $AWS_REGION"
+
 echo "✅ All tables created successfully!"
 echo "📋 Tables created:"
 echo "  - bell-menus-local"
 echo "  - bell-orders-local"  
 echo "  - bell-users-local"
 echo "  - bell-pos-jobs-local"
+echo "  - bell-restaurants-local"
 echo ""
 echo "🔗 View tables at: http://localhost:8001"

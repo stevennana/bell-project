@@ -31,7 +31,7 @@
 - 30분 동안 픽업 미확정 시 자동 완료
 
 ### 3.2 음식점 사장
-- ID/PW 로그인
+- 레스토랑 ID 기반 로그인
 - 메뉴 등록(이미지, 이름, 가격, 옵션, 설명)
 - 메뉴 버전 확정 시 과거 버전 비활성화
 - 주문 리스트/상태 조회
@@ -40,6 +40,14 @@
 - 조리 완료 → 고객 픽업 안내
 - 픽업 완료 처리 (수동/자동 30분)
 - 일자별 판매 내역, 결제 연동 내역 조회
+
+### 3.3 시스템 관리자
+- 관리자 계정으로 로그인 (admin@bell.com / admin123)
+- 레스토랑 계정 생성 및 관리
+- 레스토랑 ID (예: rest_001) 할당 및 이름 설정
+- 레스토랑별 소유자 로그인 정보 관리
+- 레스토랑 활성화 코드 생성 및 관리
+- 레스토랑 상태 관리 (활성/비활성)
 
 ---
 
@@ -141,11 +149,29 @@ paths:
   /pos/print/{jobId}:
     get:
       summary: Get POS print status
+  /restaurants:
+    get:
+      summary: Get all restaurants (Admin only)
+    post:
+      summary: Create new restaurant (Admin only)
+  /restaurants/{restaurantId}:
+    get:
+      summary: Get restaurant details
+    put:
+      summary: Update restaurant (Admin only)
+    delete:
+      summary: Delete restaurant (Admin only)
+  /restaurants/verify:
+    post:
+      summary: Verify owner credentials
 ```
 
 ---
 
 ## 10. DynamoDB 테이블 정의서
+**Restaurants**
+| PK (restaurantId) | - | restaurantName, ownerEmail, ownerPassword, activationCode, status, createdAt, updatedAt |
+
 **Menus**
 | PK (restaurantId) | SK (version) | items, createdAt, status |
 
@@ -186,6 +212,9 @@ paths:
 - **DB**: DynamoDB Local (Docker) 또는 LocalStack
 - **POS 출력**: 로컬 브라우저 프린터 또는 ESC/POS 시뮬레이터
 - **결제 모듈**: 네이버페이/카카오페이 Sandbox API 키
+- **관리자 페이지**: `./dev-local.sh`로 http://localhost:8080에서 접근
+- **개발 환경 시작**: `./dev-local.sh` (모든 서비스 포함)
+- **개발 환경 종료**: `./dev-stop.sh`
 
 ---
 # 부록 A: 기능별 Acceptance Criteria (AC) 상세

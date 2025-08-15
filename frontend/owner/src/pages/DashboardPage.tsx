@@ -6,7 +6,7 @@ import {
   Users,
   AlertCircle
 } from 'lucide-react';
-import { useDashboardStats, useOrders } from '../hooks/useApi';
+import { useDashboardStats, useOrders, useRestaurant } from '../hooks/useApi';
 
 interface RecentOrder {
   id: string;
@@ -28,6 +28,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 }) => {
   const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats(restaurantId);
   const { data: orders = [], isLoading: ordersLoading } = useOrders(restaurantId);
+  const { data: restaurant, isLoading: restaurantLoading } = useRestaurant(restaurantId);
   // Convert orders to recent orders format
   const recentOrders: RecentOrder[] = orders.slice(0, 5).map(order => ({
     id: order.orderId,
@@ -45,7 +46,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   };
 
   // Show loading state
-  if (statsLoading || ordersLoading) {
+  if (statsLoading || ordersLoading || restaurantLoading) {
     return (
       <div className="p-6">
         <div className="mb-8">
@@ -106,8 +107,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Restaurant overview and recent activity</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-600">
+              {restaurant ? `${restaurant.restaurantName} (${restaurant.restaurantId})` : 'Restaurant overview and recent activity'}
+            </p>
+          </div>
+          {restaurant && (
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Activation Code</p>
+              <p className="text-lg font-mono font-bold text-blue-600">{restaurant.activationCode}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid */}

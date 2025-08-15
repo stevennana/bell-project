@@ -147,18 +147,33 @@ else
     echo -e "${YELLOW}📋 Check sam-local.log for details${NC}"
 fi
 
+# Start Admin Server
+echo -e "${YELLOW}🚀 Starting Admin Server...${NC}"
+if command -v python3 &> /dev/null; then
+    cd admin
+    nohup python3 -m http.server 8080 > ../admin-server.log 2>&1 &
+    ADMIN_PID=$!
+    echo "$ADMIN_PID" > ../.admin-server.pid
+    cd ..
+    echo -e "${GREEN}✅ Admin Server started on port 8080 (PID: $ADMIN_PID)${NC}"
+else
+    echo -e "${YELLOW}⚠️ Python3 not found, skipping admin server${NC}"
+fi
+
 echo ""
 echo -e "${GREEN}✅ Local development environment is ready!${NC}"
 echo -e "${BLUE}📋 Services:${NC}"
 echo -e "${BLUE}  - DynamoDB Local: http://localhost:8000${NC}"
 echo -e "${BLUE}  - DynamoDB Admin: http://localhost:8001${NC}"
 echo -e "${BLUE}  - API Gateway Local: http://localhost:3000${NC}"
+echo -e "${BLUE}  - Admin Dashboard: http://localhost:8080${NC}"
 
 echo -e "${YELLOW}📝 Testing Commands:${NC}"
 echo "1. Test API: curl http://localhost:3000/menu?restaurantId=test"
-echo "2. Swagger UI: docker run --rm -p 8080:8080 -e SWAGGER_JSON=/app/swagger.yaml -v \"\$PWD/swagger.yaml:/app/swagger.yaml\" swaggerapi/swagger-ui"
-echo "3. DynamoDB Test: ./test-dynamodb.sh"
+echo "2. Admin Dashboard: http://localhost:8080"
+echo "3. Swagger UI: docker run --rm -p 8082:8080 -e SWAGGER_JSON=/app/swagger.yaml -v \"\$PWD/swagger.yaml:/app/swagger.yaml\" swaggerapi/swagger-ui"
 echo "4. DynamoDB Admin: http://localhost:8001"
 echo "5. View API logs: tail -f sam-local.log"
-echo "6. Stop everything: ./dev-stop.sh"
+echo "6. View Admin logs: tail -f admin-server.log"
+echo "7. Stop everything: ./dev-stop.sh"
 echo -e "${GREEN}🎉 Local development setup completed!${NC}"

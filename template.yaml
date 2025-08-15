@@ -13,6 +13,7 @@ Globals:
         ORDERS_TABLE: !Ref OrdersTable
         USERS_TABLE: !Ref UsersTable
         POS_JOBS_TABLE: !Ref PosJobsTable
+        RESTAURANTS_TABLE: !Ref RestaurantsTable
         AUTO_COMPLETE_MINUTES: 30
         CART_TTL_MINUTES: 10
         REFUND_CAP_PERCENT: 5
@@ -130,6 +131,18 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: expiresAt
         Enabled: true
+
+  RestaurantsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "bell-restaurants-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: restaurantId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: restaurantId
+          KeyType: HASH
 
   # API Gateway
   BellApi:
@@ -261,6 +274,52 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable
 
+  RestaurantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: handlers/restaurant.handler
+      Events:
+        GetRestaurants:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants
+            Method: get
+        PostRestaurant:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants
+            Method: post
+        GetRestaurant:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/{restaurantId}
+            Method: get
+        PutRestaurant:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/{restaurantId}
+            Method: put
+        DeleteRestaurant:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/{restaurantId}
+            Method: delete
+        VerifyOwner:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/verify
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RestaurantsTable
+
   # S3 Bucket for menu images
   MenuImagesBucket:
     Type: AWS::S3::Bucket
@@ -284,6 +343,10 @@ Outputs:
   OrdersTableName:
     Description: "DynamoDB Orders table name"  
     Value: !Ref OrdersTable
+    
+  RestaurantsTableName:
+    Description: "DynamoDB Restaurants table name"
+    Value: !Ref RestaurantsTable
     
   MenuImagesBucketName:
     Description: "S3 bucket for menu images"

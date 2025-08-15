@@ -27,6 +27,19 @@ if [ -f ".sam-local.pid" ]; then
     rm .sam-local.pid
 fi
 
+# Kill Admin Server process if PID file exists
+if [ -f ".admin-server.pid" ]; then
+    ADMIN_PID=$(cat .admin-server.pid)
+    if ps -p $ADMIN_PID > /dev/null; then
+        echo -e "${YELLOW}🔪 Stopping Admin Server (PID: $ADMIN_PID)...${NC}"
+        kill $ADMIN_PID 2>/dev/null || true
+        sleep 1
+        # Force kill if still running
+        kill -9 $ADMIN_PID 2>/dev/null || true
+    fi
+    rm .admin-server.pid
+fi
+
 # Kill any remaining processes on the ports we use
 echo -e "${YELLOW}🔪 Cleaning up any remaining processes...${NC}"
 
@@ -47,10 +60,9 @@ echo -e "${YELLOW}🐳 Stopping Docker containers...${NC}"
 docker-compose down
 
 # Clean up log files
-if [ -f "sam-local.log" ]; then
-    echo -e "${YELLOW}🧹 Cleaning up log files...${NC}"
-    rm -f sam-local.log
-fi
+echo -e "${YELLOW}🧹 Cleaning up log files...${NC}"
+rm -f sam-local.log
+rm -f admin-server.log
 
 echo -e "${GREEN}✅ Local development environment stopped!${NC}"
 echo -e "${BLUE}💡 To start again, run: ./dev-local.sh${NC}"

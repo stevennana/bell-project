@@ -1,15 +1,28 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { restaurantApi } from '../services/api'
 
 export default function MenuEntryPage() {
   const { restaurantId } = useParams<{ restaurantId: string }>()
   const navigate = useNavigate()
   const { setRestaurant } = useCart()
+  const [restaurant, setRestaurantData] = useState<{
+    restaurantId: string
+    restaurantName: string
+    status: string
+  } | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (restaurantId) {
       setRestaurant(restaurantId)
+      
+      // Fetch restaurant data
+      restaurantApi.getRestaurant(restaurantId)
+        .then(setRestaurantData)
+        .catch(console.error)
+        .finally(() => setLoading(false))
     }
   }, [restaurantId, setRestaurant])
 
@@ -39,7 +52,7 @@ export default function MenuEntryPage() {
             </div>
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-3">
-            Bell Restaurant
+            {loading ? 'Loading...' : restaurant?.restaurantName || 'Bell Restaurant'}
           </h1>
           <p className="text-gray-600 text-lg">QR 기반 스마트 주문 시스템</p>
           <div className="mt-2 flex items-center justify-center space-x-1">

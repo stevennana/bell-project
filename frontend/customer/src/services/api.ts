@@ -265,3 +265,34 @@ export const paymentApi = {
     }
   },
 }
+
+export const restaurantApi = {
+  getRestaurant: async (restaurantId: string): Promise<{
+    restaurantId: string
+    restaurantName: string
+    status: string
+  }> => {
+    try {
+      const response = await api.get(`/restaurants/${restaurantId}`)
+      return response.data
+    } catch (error) {
+      console.warn('Backend API not available, using mock restaurant data:', error)
+      
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // Mock restaurant data
+      const mockRestaurants: Record<string, string> = {
+        'rest_001': 'Bella\'s Pizza',
+        'rest_002': 'Seoul Kitchen',
+        'rest_003': 'Tokyo Ramen',
+        'rest_004': 'Burger Palace'
+      }
+      
+      return {
+        restaurantId,
+        restaurantName: mockRestaurants[restaurantId] || `Restaurant ${restaurantId}`,
+        status: 'active'
+      }
+    }
+  }
+}

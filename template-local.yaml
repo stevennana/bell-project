@@ -14,6 +14,7 @@ Globals:
         ORDERS_TABLE: bell-orders-local
         USERS_TABLE: bell-users-local
         POS_JOBS_TABLE: bell-pos-jobs-local
+        RESTAURANTS_TABLE: bell-restaurants-local
         AUTO_COMPLETE_MINUTES: 30
         CART_TTL_MINUTES: 10
         REFUND_CAP_PERCENT: 5
@@ -152,6 +153,48 @@ Resources:
             RestApiId: !Ref BellApi
             Path: /stats/dashboard
             Method: get
+
+  RestaurantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/restaurant.handler
+      Events:
+        GetRestaurants:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants
+            Method: get
+        PostRestaurant:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants
+            Method: post
+        GetRestaurant:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/{restaurantId}
+            Method: get
+        PutRestaurant:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/{restaurantId}
+            Method: put
+        DeleteRestaurant:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/{restaurantId}
+            Method: delete
+        VerifyOwner:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/verify
+            Method: post
 
   # Note: AutoCompleteFunction excluded from local development
   # as it requires EventBridge scheduling

@@ -1,1 +1,0 @@
-{"version":3,"file":"payment-callback.d.ts","sourceRoot":"","sources":["../../src/handlers/payment-callback.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,oBAAoB,EAAE,qBAAqB,EAAE,MAAM,cAAc,CAAC;AAO3E,eAAO,MAAM,OAAO,GAClB,OAAO,oBAAoB,KAC1B,OAAO,CAAC,qBAAqB,CAqD/B,CAAC"}

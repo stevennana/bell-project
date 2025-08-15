@@ -4,6 +4,7 @@
     "ORDERS_TABLE": "bell-orders-local",
     "USERS_TABLE": "bell-users-local",
     "POS_JOBS_TABLE": "bell-pos-jobs-local",
+    "RESTAURANTS_TABLE": "bell-restaurants-local",
     "AUTO_COMPLETE_MINUTES": "30",
     "CART_TTL_MINUTES": "10",
     "REFUND_CAP_PERCENT": "5",

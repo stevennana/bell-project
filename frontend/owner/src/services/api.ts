@@ -273,6 +273,50 @@ class ApiClient {
       };
     }
   }
+
+  // Restaurant Management
+  async getRestaurant(restaurantId: string): Promise<{
+    restaurantId: string;
+    restaurantName: string;
+    ownerEmail: string;
+    activationCode: string;
+    status: 'active' | 'inactive';
+    createdAt: string;
+    updatedAt: string;
+  }> {
+    try {
+      const response = await this.client.get(`/restaurants/${restaurantId}`);
+      return response.data;
+    } catch (error) {
+      // Mock data if endpoint doesn't exist yet
+      console.warn('Restaurant endpoint not available yet, using mock data');
+      return {
+        restaurantId,
+        restaurantName: `Restaurant ${restaurantId}`,
+        ownerEmail: 'owner@restaurant.com',
+        activationCode: 'ABC123',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    }
+  }
+
+  async verifyOwnerCredentials(restaurantId: string, email: string, password: string): Promise<{
+    restaurant: {
+      restaurantId: string;
+      restaurantName: string;
+      activationCode: string;
+      status: string;
+    };
+  }> {
+    const response = await this.client.post('/restaurants/verify', {
+      restaurantId,
+      email,
+      password
+    });
+    return response.data;
+  }
 }
 
 // Create and export singleton instance

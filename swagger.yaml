@@ -27,6 +27,8 @@ tags:
     description: POS system operations
   - name: payment
     description: Payment callback operations
+  - name: restaurant
+    description: Restaurant management operations (Admin)
 
 paths:
   /menu:
@@ -368,7 +370,237 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /restaurants:
+    get:
+      tags:
+        - restaurant
+      summary: Get all restaurants
+      description: Retrieve list of all restaurants (Admin only)
+      security:
+        - BasicAuth: []
+      responses:
+        '200':
+          description: Restaurants retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Restaurant'
+        '401':
+          description: Unauthorized - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - restaurant
+      summary: Create new restaurant
+      description: Create a new restaurant account (Admin only)
+      security:
+        - BasicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRestaurantRequest'
+      responses:
+        '201':
+          description: Restaurant created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Restaurant'
+        '400':
+          description: Bad request - Invalid restaurant data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict - Restaurant ID already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /restaurants/{restaurantId}:
+    get:
+      tags:
+        - restaurant
+      summary: Get restaurant details
+      description: Retrieve details for a specific restaurant
+      parameters:
+        - name: restaurantId
+          in: path
+          required: true
+          description: Unique restaurant identifier
+          schema:
+            type: string
+            example: "rest_001"
+      responses:
+        '200':
+          description: Restaurant retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Restaurant'
+        '404':
+          description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - restaurant
+      summary: Update restaurant
+      description: Update restaurant details (Admin only)
+      security:
+        - BasicAuth: []
+      parameters:
+        - name: restaurantId
+          in: path
+          required: true
+          description: Unique restaurant identifier
+          schema:
+            type: string
+            example: "rest_001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRestaurantRequest'
+      responses:
+        '200':
+          description: Restaurant updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Restaurant updated successfully"
+        '400':
+          description: Bad request - Invalid update data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - restaurant
+      summary: Delete restaurant
+      description: Delete a restaurant account (Admin only)
+      security:
+        - BasicAuth: []
+      parameters:
+        - name: restaurantId
+          in: path
+          required: true
+          description: Unique restaurant identifier
+          schema:
+            type: string
+            example: "rest_001"
+      responses:
+        '200':
+          description: Restaurant deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Restaurant deleted successfully"
+        '401':
+          description: Unauthorized - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /restaurants/verify:
+    post:
+      tags:
+        - restaurant
+      summary: Verify owner credentials
+      description: Verify restaurant owner login credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOwnerRequest'
+      responses:
+        '200':
+          description: Credentials verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyOwnerResponse'
+        '400':
+          description: Bad request - Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Restaurant is not active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: Admin authentication (admin@bell.com / admin123)
   schemas:
     MenuItem:
       type: object
@@ -825,3 +1057,142 @@ components:
           type: string
           format: uri
           example: "/menu"
+
+    Restaurant:
+      type: object
+      required:
+        - restaurantId
+        - restaurantName
+        - ownerEmail
+        - activationCode
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        restaurantId:
+          type: string
+          example: "rest_001"
+          description: "Unique restaurant identifier"
+        restaurantName:
+          type: string
+          example: "Bella's Pizza"
+          description: "Display name of the restaurant"
+        ownerEmail:
+          type: string
+          format: email
+          example: "owner@bellas.com"
+          description: "Restaurant owner's email address"
+        activationCode:
+          type: string
+          example: "ABC123"
+          description: "6-character activation code for the restaurant"
+        status:
+          type: string
+          enum: [active, inactive]
+          example: "active"
+          description: "Current status of the restaurant"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:30:45.123Z"
+          description: "When the restaurant was created"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2023-08-15T12:35:45.123Z"
+          description: "When the restaurant was last updated"
+
+    CreateRestaurantRequest:
+      type: object
+      required:
+        - restaurantId
+        - restaurantName
+        - ownerEmail
+        - ownerPassword
+      properties:
+        restaurantId:
+          type: string
+          example: "rest_001"
+          description: "Unique restaurant identifier"
+        restaurantName:
+          type: string
+          example: "Bella's Pizza"
+          description: "Display name of the restaurant"
+        ownerEmail:
+          type: string
+          format: email
+          example: "owner@bellas.com"
+          description: "Restaurant owner's email address"
+        ownerPassword:
+          type: string
+          format: password
+          example: "securePassword123"
+          description: "Restaurant owner's password"
+
+    UpdateRestaurantRequest:
+      type: object
+      properties:
+        restaurantName:
+          type: string
+          example: "Bella's Pizza & More"
+          description: "Updated display name of the restaurant"
+        ownerEmail:
+          type: string
+          format: email
+          example: "newowner@bellas.com"
+          description: "Updated restaurant owner's email address"
+        ownerPassword:
+          type: string
+          format: password
+          example: "newSecurePassword123"
+          description: "Updated restaurant owner's password (optional)"
+        status:
+          type: string
+          enum: [active, inactive]
+          example: "active"
+          description: "Updated status of the restaurant"
+
+    VerifyOwnerRequest:
+      type: object
+      required:
+        - restaurantId
+        - email
+        - password
+      properties:
+        restaurantId:
+          type: string
+          example: "rest_001"
+          description: "Unique restaurant identifier"
+        email:
+          type: string
+          format: email
+          example: "owner@bellas.com"
+          description: "Restaurant owner's email address"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+          description: "Restaurant owner's password"
+
+    VerifyOwnerResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Credentials verified"
+          description: "Success message"
+        restaurant:
+          type: object
+          properties:
+            restaurantId:
+              type: string
+              example: "rest_001"
+            restaurantName:
+              type: string
+              example: "Bella's Pizza"
+            activationCode:
+              type: string
+              example: "ABC123"
+            status:
+              type: string
+              example: "active"

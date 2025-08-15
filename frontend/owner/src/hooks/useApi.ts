@@ -218,3 +218,14 @@ export const useDashboardStats = (restaurantId: string) => {
     retry: 3
   });
 };
+
+// Restaurant hooks
+export const useRestaurant = (restaurantId: string) => {
+  return useQuery({
+    queryKey: ['restaurant', restaurantId],
+    queryFn: () => apiClient.getRestaurant(restaurantId),
+    enabled: !!restaurantId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - restaurant info doesn't change often
+    retry: 3
+  });
+};
