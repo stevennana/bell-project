@@ -264,6 +264,29 @@
             border: 1px solid #ffcdd2;
         }
 
+        .api-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .api-status.connected {
+            background: #d1f2eb;
+            color: #00875a;
+        }
+
+        .api-status.demo {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .api-status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -301,7 +324,10 @@
     <div id="dashboard" class="dashboard">
         <div class="container">
             <div class="header">
-                <h1>Restaurant Management</h1>
+                <div>
+                    <h1>Restaurant Management</h1>
+                    <div id="apiStatus" class="api-status"></div>
+                </div>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
 
@@ -387,6 +413,34 @@
             showDashboard();
         }
 
+        // API Status functions
+        function updateApiStatus(status, message) {
+            const statusElement = document.getElementById('apiStatus');
+            if (statusElement) {
+                statusElement.className = `api-status ${status}`;
+                statusElement.textContent = message;
+            }
+        }
+
+        // Test API connection on page load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/restaurants`, {
+                    headers: {
+                        'Authorization': 'Basic ' + btoa('admin@bell.com:admin123')
+                    }
+                });
+                if (response.ok || response.status === 401) {
+                    updateApiStatus('connected', '🟢 Connected to API');
+                } else {
+                    updateApiStatus('error', '🔴 API Error');
+                }
+            } catch (error) {
+                updateApiStatus('demo', '🟡 Demo Mode - API not available');
+                console.warn('Backend API not available. Using demo mode.');
+            }
+        });
+
         // Login functionality
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -432,7 +486,8 @@
                     showAlert(error.error || 'Failed to add restaurant', 'error');
                 }
             } catch (error) {
-                showAlert('Network error. Using mock data for demonstration.', 'error');
+                console.warn('API not available, using mock data for creation');
+                showAlert('API not available. Using demo data. Changes will not persist.', 'error');
                 // Add to mock data for demo
                 addMockRestaurant(restaurantData);
             }
@@ -474,7 +529,8 @@
                     showAlert(error.error || 'Failed to update restaurant', 'error');
                 }
             } catch (error) {
-                showAlert('Network error. Using mock data for demonstration.', 'error');
+                console.warn('API not available, using mock data for update');
+                showAlert('API not available. Using demo data. Changes will not persist.', 'error');
                 updateMockRestaurant(restaurantId, updateData);
             }
         });
@@ -502,11 +558,19 @@
                 if (response.ok) {
                     const restaurants = await response.json();
                     displayRestaurants(restaurants);
+                    updateApiStatus('connected', '🟢 Connected to API');
+                } else if (response.status === 401) {
+                    showAlert('Authentication failed. Please check admin credentials.', 'error');
+                    updateApiStatus('error', '🔴 Authentication Failed');
+                    displayRestaurants([]);
                 } else {
-                    throw new Error('API not available');
+                    updateApiStatus('error', '🔴 API Error');
+                    throw new Error(`API error: ${response.status}`);
                 }
             } catch (error) {
-                console.log('API not available, using mock data');
+                console.warn('API not available, using mock data:', error);
+                updateApiStatus('demo', '🟡 Demo Mode - API not available');
+                showAlert('API not available. Using demo data. Start the backend to use real API.', 'error');
                 displayRestaurants(getMockRestaurants());
             }
         }
@@ -537,19 +601,39 @@
             `).join('');
         }
 
-        function editRestaurant(restaurantId) {
-            // Find restaurant data
-            const restaurants = getMockRestaurants();
-            const restaurant = restaurants.find(r => r.restaurantId === restaurantId);
-            
-            if (restaurant) {
-                document.getElementById('editRestaurantId').value = restaurant.restaurantId;
-                document.getElementById('editRestaurantName').value = restaurant.restaurantName;
-                document.getElementById('editOwnerEmail').value = restaurant.ownerEmail;
-                document.getElementById('editOwnerPassword').value = '';
-                document.getElementById('editStatus').value = restaurant.status;
+        async function editRestaurant(restaurantId) {
+            try {
+                // Fetch current restaurant data from API
+                const response = await fetch(`${API_BASE_URL}/restaurants/${restaurantId}`);
                 
-                document.getElementById('editModal').classList.add('active');
+                if (response.ok) {
+                    const restaurant = await response.json();
+                    
+                    document.getElementById('editRestaurantId').value = restaurant.restaurantId;
+                    document.getElementById('editRestaurantName').value = restaurant.restaurantName;
+                    document.getElementById('editOwnerEmail').value = restaurant.ownerEmail;
+                    document.getElementById('editOwnerPassword').value = '';
+                    document.getElementById('editStatus').value = restaurant.status;
+                    
+                    document.getElementById('editModal').classList.add('active');
+                } else {
+                    showAlert('Failed to fetch restaurant data', 'error');
+                }
+            } catch (error) {
+                console.warn('API not available, using mock data for edit');
+                // Fallback to mock data
+                const restaurants = getMockRestaurants();
+                const restaurant = restaurants.find(r => r.restaurantId === restaurantId);
+                
+                if (restaurant) {
+                    document.getElementById('editRestaurantId').value = restaurant.restaurantId;
+                    document.getElementById('editRestaurantName').value = restaurant.restaurantName;
+                    document.getElementById('editOwnerEmail').value = restaurant.ownerEmail;
+                    document.getElementById('editOwnerPassword').value = '';
+                    document.getElementById('editStatus').value = restaurant.status;
+                    
+                    document.getElementById('editModal').classList.add('active');
+                }
             }
         }
 
@@ -578,7 +662,8 @@
                     showAlert(error.error || 'Failed to delete restaurant', 'error');
                 }
             } catch (error) {
-                showAlert('Network error. Using mock data for demonstration.', 'error');
+                console.warn('API not available, using mock data for deletion');
+                showAlert('API not available. Using demo data. Changes will not persist.', 'error');
                 deleteMockRestaurant(restaurantId);
             }
         }

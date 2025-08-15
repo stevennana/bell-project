@@ -12,9 +12,10 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 - Local development environment configured
 - Production deployment scripts ready
 
-✅ **Frontend: COMPLETED** - Two separate React applications for different personas
+✅ **Frontend: COMPLETED** - Three separate applications for different personas
 - **Customer Frontend**: Mobile-first QR ordering experience (Port 3001)
-- **Owner Dashboard**: Desktop/mobile restaurant management system (Port 3002)
+- **Owner Dashboard**: Desktop/mobile restaurant management system (Port 3002)  
+- **Admin Dashboard**: Restaurant management interface (Port 8080)
 - Tailwind CSS styling with responsive design
 - TypeScript with shared API types
 - React Router for navigation
@@ -47,6 +48,14 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 - Order status management
 - Sales reporting by date
 - Automated order completion
+
+### Admin Features
+- Restaurant account creation and management
+- Restaurant ID assignment (rest_001, rest_002, etc.)
+- Owner credential management
+- Activation code generation
+- Restaurant status control (active/inactive)
+- Multi-restaurant system administration
 
 ### Business Logic
 - Menu versioning with historical snapshots
@@ -149,6 +158,7 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
    This will:
    - Start DynamoDB Local on port 8000
    - Start DynamoDB Admin UI on port 8001
+   - Start Admin Dashboard on port 8080
    - Create all required tables
    - Build the SAM application
 

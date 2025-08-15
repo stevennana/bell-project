@@ -41,10 +41,11 @@ stop_process() {
 # Stop frontend services
 stop_process ".owner-frontend.pid" "Owner Dashboard"
 stop_process ".customer-frontend.pid" "Customer Frontend"
+stop_process ".admin-frontend.pid" "Admin Dashboard"
 
-# Also kill any remaining vite processes on our ports
-echo -e "${YELLOW}🔍 Checking for remaining processes on ports 3001-3002${NC}"
-for port in 3001 3002; do
+# Also kill any remaining processes on our ports
+echo -e "${YELLOW}🔍 Checking for remaining processes on ports 3001-3002, 8080${NC}"
+for port in 3001 3002 8080; do
     if lsof -ti:$port > /dev/null 2>&1; then
         echo -e "${YELLOW}⚡ Force stopping process on port $port${NC}"
         kill -9 $(lsof -ti:$port) 2>/dev/null || true
@@ -56,5 +57,6 @@ echo -e "${GREEN}✅ All frontend development servers stopped${NC}"
 echo -e "${BLUE}📋 Cleanup complete:${NC}"
 echo -e "${BLUE}  • Owner Dashboard (port 3001) - stopped${NC}"
 echo -e "${BLUE}  • Customer Frontend (port 3002) - stopped${NC}"
+echo -e "${BLUE}  • Admin Dashboard (port 8080) - stopped${NC}"
 echo ""
 echo -e "${YELLOW}💡 To restart: ./dev-frontend.sh${NC}"
