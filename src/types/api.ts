@@ -10,6 +10,7 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
+  category: string;
   imageUrl?: string;
   options: MenuOption[];
   available: boolean;
@@ -181,4 +182,39 @@ export interface APIGatewayProxyResult {
   statusCode: number;
   headers?: { [key: string]: string };
   body: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  displayName: string;
+  active: boolean;
+  order: number;
+  restaurantId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetCategoriesResponse {
+  categories: Category[];
+}
+
+export interface PostCategoryRequest {
+  name: string;
+  displayName: string;
+  order?: number;
+}
+
+export interface PostCategoryResponse {
+  category: Category;
+}
+
+export interface UpdateCategoryRequest {
+  displayName?: string;
+  active?: boolean;
+  order?: number;
+}
+
+export interface UpdateCategoryResponse {
+  category: Category;
 }

@@ -16,15 +16,16 @@ import {
   useUpdateMenuItem, 
   useDeleteMenuItem, 
   usePublishMenu,
-  useConfirmDraft 
+  useConfirmDraft,
+  useCategories,
+  useCreateCategory,
+  useUpdateCategory
 } from '../hooks/useApi';
-import type { MenuItem } from '../types/api';
+import type { MenuItem, Category, CreateCategoryRequest } from '../types/api';
 
 interface MenuManagementPageProps {
   restaurantId: string;
 }
-
-const categories = ['burgers', 'sides', 'drinks', 'desserts'];
 
 export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
   restaurantId
@@ -32,11 +33,14 @@ export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
   // API hooks
   const { data: publishedMenu, isLoading: publishedLoading, error: publishedError } = usePublishedMenu(restaurantId);
   const { data: draftMenu, isLoading: draftLoading, error: draftError } = useDraftMenu(restaurantId);
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories(restaurantId);
   const createMenuItem = useCreateMenuItem(restaurantId);
   const updateMenuItem = useUpdateMenuItem(restaurantId);
   const deleteMenuItem = useDeleteMenuItem(restaurantId);
   const publishMenu = usePublishMenu(restaurantId);
   const confirmDraft = useConfirmDraft(restaurantId);
+  const createCategory = useCreateCategory(restaurantId);
+  const updateCategory = useUpdateCategory(restaurantId);
 
   // State for viewing mode
   const [viewMode, setViewMode] = useState<'published' | 'draft'>('draft');
@@ -50,12 +54,23 @@ export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
   const hasDraftChanges = draftMenu !== null;
   const [isCreating, setIsCreating] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  
+  // Category management state
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategory, setNewCategory] = useState<CreateCategoryRequest>({
+    name: '',
+    displayName: ''
+  });
+  
+  // Get active categories only for filtering and display
+  const activeCategories = categories.filter(cat => cat.active);
+  const defaultCategory = activeCategories.length > 0 ? activeCategories[0].name : 'general';
 
   const [newItem, setNewItem] = useState<Omit<MenuItem, 'id'>>({
     name: '',
     description: '',
     price: 0,
-    category: 'burgers',
+    category: defaultCategory,
     available: true,
     options: []
   });
@@ -71,7 +86,7 @@ export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
         name: '',
         description: '',
         price: 0,
-        category: 'burgers',
+        category: defaultCategory,
         available: true,
         options: []
       });
@@ -79,6 +94,57 @@ export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
     } catch (error) {
       console.error('Failed to create item:', error);
       alert('Failed to create menu item. Please try again.');
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategory.name || !newCategory.displayName) {
+      alert('Please fill in both name and display name for the category');
+      return;
+    }
+
+    try {
+      await createCategory.mutateAsync({
+        ...newCategory,
+        order: categories.length
+      });
+      setNewCategory({ name: '', displayName: '' });
+      setIsCategoryModalOpen(false);
+    } catch (error) {
+      console.error('Failed to create category:', error);
+      alert('Failed to create category. Please try again.');
+    }
+  };
+
+  const handleToggleCategoryStatus = async (categoryId: string, currentStatus: boolean) => {
+    // If deactivating a category, show warning about menu items
+    if (currentStatus) {
+      const category = categories.find(cat => cat.id === categoryId);
+      const categoryName = category?.displayName || 'this category';
+      const itemsInCategory = menuItems.filter(item => item.category === category?.name).length;
+      
+      if (itemsInCategory > 0) {
+        const confirmMessage = `Deactivating "${categoryName}" will affect ${itemsInCategory} menu item(s) in this category. Menu items in inactive categories won't be available for new orders. Continue?`;
+        if (!window.confirm(confirmMessage)) {
+          return;
+        }
+      }
+    }
+
+    try {
+      await updateCategory.mutateAsync({
+        categoryId,
+        updates: { active: !currentStatus }
+      });
+      
+      if (!currentStatus) {
+        alert('Category activated! You can now add menu items to this category.');
+      } else {
+        alert('Category deactivated! Menu items in this category are no longer available for ordering.');
+      }
+    } catch (error) {
+      console.error('Failed to update category status:', error);
+      alert('Failed to update category status.');
     }
   };
 
@@ -115,7 +181,7 @@ export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
   };
 
   // Loading state
-  if (publishedLoading || draftLoading) {
+  if (publishedLoading || draftLoading || categoriesLoading) {
     return (
       <div className="p-6">
         <div className="mb-8">
@@ -204,6 +270,13 @@ export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
           
           <div className="flex flex-col sm:flex-row gap-3">
             <button
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="btn-secondary"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Manage Categories
+            </button>
+            <button
               onClick={() => setIsCreating(true)}
               className="btn-primary"
             >
@@ -247,19 +320,19 @@ export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
             >
               All ({menuItems.length})
             </button>
-            {categories.map((category) => {
-              const count = menuItems.filter(item => item.category === category).length;
+            {activeCategories.map((category) => {
+              const count = menuItems.filter(item => item.category === category.name).length;
               return (
                 <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm capitalize ${
-                    selectedCategory === category
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.name)}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    selectedCategory === category.name
                       ? 'border-primary-500 text-primary-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  {category} ({count})
+                  {category.displayName} ({count})
                 </button>
               );
             })}
@@ -312,9 +385,9 @@ export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
                     onChange={(e) => setNewItem({...newItem, category: e.target.value})}
                     className="input"
                   >
-                    {categories.map(category => (
-                      <option key={category} value={category} className="capitalize">
-                        {category}
+                    {activeCategories.map(category => (
+                      <option key={category.id} value={category.name}>
+                        {category.displayName}
                       </option>
                     ))}
                   </select>
@@ -334,6 +407,91 @@ export const MenuManagementPage: React.FC<MenuManagementPageProps> = ({
                   disabled={createMenuItem.isPending}
                 >
                   {createMenuItem.isPending ? 'Creating...' : 'Create Item'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Management Modal */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Category Management</h3>
+              
+              {/* Existing Categories */}
+              <div className="mb-6">
+                <h4 className="text-md font-medium text-gray-700 mb-3">Existing Categories</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {categories.map(category => (
+                    <div key={category.id} className="flex items-center justify-between p-2 border rounded">
+                      <div className="flex items-center">
+                        <span className={`text-sm ${category.active ? 'text-gray-900' : 'text-gray-500 line-through'}`}>
+                          {category.displayName}
+                        </span>
+                        <span className="text-xs text-gray-400 ml-2">
+                          ({category.name})
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleToggleCategoryStatus(category.id, category.active)}
+                        className={`px-2 py-1 text-xs rounded ${
+                          category.active 
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                        }`}
+                        disabled={updateCategory.isPending}
+                      >
+                        {category.active ? 'Active' : 'Inactive'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Create New Category */}
+              <div className="mb-4">
+                <h4 className="text-md font-medium text-gray-700 mb-3">Add New Category</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Name (internal)</label>
+                    <input
+                      type="text"
+                      value={newCategory.name}
+                      onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                      placeholder="e.g., appetizers"
+                      className="input"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Display Name</label>
+                    <input
+                      type="text"
+                      value={newCategory.displayName}
+                      onChange={(e) => setNewCategory({...newCategory, displayName: e.target.value})}
+                      placeholder="e.g., Appetizers"
+                      className="input"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setIsCategoryModalOpen(false)}
+                  className="btn-secondary"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handleCreateCategory}
+                  className="btn-primary"
+                  disabled={createCategory.isPending || !newCategory.name || !newCategory.displayName}
+                >
+                  {createCategory.isPending ? 'Creating...' : 'Add Category'}
                 </button>
               </div>
             </div>

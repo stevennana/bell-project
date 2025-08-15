@@ -57,10 +57,16 @@ export async function getAllRestaurants(event: APIGatewayProxyEvent): Promise<AP
       TableName: RESTAURANTS_TABLE
     }));
 
+    // Filter to only return actual restaurant records (not old category records)
+    const restaurants = (result.Items || []).filter(item => {
+      // Real restaurant records have restaurantName and don't contain '#' in restaurantId
+      return item.restaurantName && !item.restaurantId?.includes('#');
+    });
+
     return {
       statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify(result.Items || [])
+      body: JSON.stringify(restaurants)
     };
   } catch (error) {
     console.error('Error getting restaurants:', error);

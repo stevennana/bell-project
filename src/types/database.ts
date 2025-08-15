@@ -80,3 +80,14 @@ export interface DynamoDBUpdateOptions {
   conditionExpression?: string;
   returnValues?: 'NONE' | 'ALL_OLD' | 'UPDATED_OLD' | 'ALL_NEW' | 'UPDATED_NEW';
 }
+
+export interface CategoryRecord {
+  restaurantId: string;
+  categoryId: string;
+  name: string;
+  displayName: string;
+  active: boolean;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -97,3 +97,26 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  displayName: string;
+  active: boolean;
+  order: number;
+  restaurantId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCategoryRequest {
+  name: string;
+  displayName: string;
+  order?: number;
+}
+
+export interface UpdateCategoryRequest {
+  displayName?: string;
+  active?: boolean;
+  order?: number;
+}

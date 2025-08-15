@@ -32,8 +32,11 @@
 
 ### 3.2 음식점 사장
 - 레스토랑 ID 기반 로그인
+- **카테고리 관리**: 카테고리 생성, 편집, 활성화/비활성화
 - 메뉴 등록(이미지, 이름, 가격, 옵션, 설명)
 - 메뉴 버전 확정 시 과거 버전 비활성화
+- **카테고리 비활성화 시 관련 메뉴 초안 상태로 전환**
+- **활성화된 카테고리로 메뉴 이동 후 게시 확인 기능**
 - 주문 리스트/상태 조회
 - 주문 확인/조리 시작 (POS 프린터 ESC/POS 출력)
 - 주문 취소 (조리 전/후 5% 환불 상한)
@@ -164,22 +167,57 @@ paths:
   /restaurants/verify:
     post:
       summary: Verify owner credentials
+  /restaurants/{restaurantId}/categories:
+    get:
+      summary: Get restaurant categories
+    post:
+      summary: Create new category
+  /restaurants/{restaurantId}/categories/{categoryId}:
+    put:
+      summary: Update category (activate/deactivate)
 ```
 
 ---
 
 ## 10. DynamoDB 테이블 정의서
-**Restaurants**
+
+**1. bell-restaurants-{env}**: 레스토랑 계정 관리
 | PK (restaurantId) | - | restaurantName, ownerEmail, ownerPassword, activationCode, status, createdAt, updatedAt |
 
-**Menus**
+**2. bell-menus-{env}**: 메뉴 버전 관리
 | PK (restaurantId) | SK (version) | items, createdAt, status |
 
-**Orders**
+**카테고리 관리**: 레스토랑 레코드 내 categories 배열로 관리
+| Restaurant Record | categories: [{id, name, displayName, active, order, createdAt, updatedAt}] |
+
+**3. bell-orders-{env}**: 주문 생명주기
 | PK (orderId) | SK (restaurantId) | menuSnapshot, status, timestamps, paymentInfo |
 
-**Users**
+**4. bell-users-{env}**: 사장 인증
 | PK (userId) | SK (type=OWNER) | email, passwordHash, createdAt |
+
+**5. bell-pos-jobs-{env}**: POS 출력 작업
+| PK (jobId) | - | orderId, status, createdAt, completedAt |
+
+---
+
+## 10. 카테고리 관리 비즈니스 규칙
+
+### 10.1 카테고리 생성/편집
+- 카테고리는 레스토랑별로 독립적으로 관리됨
+- 카테고리 삭제 기능 없음 (비활성화만 가능)
+- 카테고리 순서(order) 자동 할당 및 수동 변경 가능
+- 기본 카테고리: Burgers, Sides, Drinks, Desserts
+
+### 10.2 카테고리 비활성화 규칙
+- 카테고리 비활성화 시 해당 카테고리의 모든 메뉴 아이템이 초안(draft) 상태로 전환
+- 메뉴를 다시 게시하려면 활성화된 카테고리로 이동 후 게시 확인 필요
+- 카테고리 재활성화 시 이전 메뉴 상태는 복원되지 않음 (수동 재게시 필요)
+
+### 10.3 데이터 저장 방식
+- 카테고리는 레스토랑 레코드 내 `categories` 배열로 저장
+- 별도 테이블이 아닌 임베디드 문서 형태로 관리
+- 레스토랑 관리 기능과의 충돌 방지
 
 ---
 
@@ -200,21 +238,73 @@ paths:
 
 ---
 
-## 12. 비용 추정
+## 12. 개발 완료 상태
+
+### 12.1 백엔드 구현 상태 (100% 완료)
+- ✅ 모든 API 엔드포인트 구현 및 테스트 완료
+- ✅ DynamoDB 테이블 및 연산 구성 완료
+- ✅ 결제 연동 (NaverPay/KakaoPay) 준비 완료
+- ✅ POS 프린터 연동 구현 완료
+- ✅ **카테고리 관리 API 구현 완료**
+- ✅ 레스토랑 관리 API 구현 완료
+- ✅ 로컬 개발 환경 구성 완료
+- ✅ 프로덕션 배포 스크립트 준비 완료
+
+### 12.2 프론트엔드 구현 상태 (100% 완료)
+- ✅ **고객 프론트엔드**: 모바일 우선 QR 주문 경험 (포트 3002)
+- ✅ **사장 대시보드**: 데스크톱/모바일 레스토랑 관리 시스템 (포트 3001)
+  - ✅ **카테고리 관리 기능 구현**: 생성, 편집, 활성화/비활성화
+  - ✅ 메뉴 관리 및 버전 관리
+  - ✅ 주문 관리 및 POS 연동
+- ✅ **관리자 대시보드**: 레스토랑 관리 인터페이스 (포트 8080)
+- ✅ Tailwind CSS 스타일링 및 반응형 디자인
+- ✅ TypeScript 및 공유 API 타입
+- ✅ React Router 네비게이션
+- ✅ TanStack Query API 상태 관리
+
+### 12.3 주요 구현 완료 기능
+- ✅ **카테고리 관리 시스템**: 완전한 CRUD 작업 지원
+- ✅ **메뉴 버전 관리**: 초안/게시 상태 관리
+- ✅ **주문 생명주기**: 생성부터 완료까지 전체 플로우
+- ✅ **결제 연동**: NaverPay/KakaoPay 웹훅 처리
+- ✅ **POS 프린터 연동**: ESC/POS 명령 지원
+- ✅ **자동화**: EventBridge 기반 주문 자동 완료
+- ✅ **인증 시스템**: 관리자 및 사장 인증
+- ✅ **다중 레스토랑 시스템**: 레스토랑별 독립적 관리
+
+## 13. 비용 추정
 - 평균 트래픽 10 rps: $100~$340/월
 - Idle 상태: $5~$15/월
 
 ---
 
-## 13. 로컬 개발 가이드
-- **프론트엔드**: `npm run dev` (Vite/React), 환경변수 `.env.local`
-- **백엔드**: AWS SAM CLI 또는 LocalStack 사용
-- **DB**: DynamoDB Local (Docker) 또는 LocalStack
-- **POS 출력**: 로컬 브라우저 프린터 또는 ESC/POS 시뮬레이터
-- **결제 모듈**: 네이버페이/카카오페이 Sandbox API 키
-- **관리자 페이지**: `./dev-local.sh`로 http://localhost:8080에서 접근
-- **개발 환경 시작**: `./dev-local.sh` (모든 서비스 포함)
-- **개발 환경 종료**: `./dev-stop.sh`
+## 14. 로컬 개발 가이드
+
+### 14.1 개발 환경 구성
+- **백엔드**: AWS SAM CLI + DynamoDB Local (Docker)
+- **프론트엔드**: Vite/React (포트 분리)
+  - 고객 UI: http://localhost:3002 (모바일 우선)
+  - 사장 UI: http://localhost:3001 (데스크톱/모바일)
+  - 관리자 UI: http://localhost:8080 (데스크톱)
+- **DB**: DynamoDB Local (port 8000) + Admin UI (port 8001)
+- **API**: AWS Lambda Local (port 3000)
+- **POS 출력**: ESC/POS 시뮬레이터
+- **결제 모듈**: 네이버페이/카카오페이 Sandbox API
+
+### 14.2 개발 스크립트
+- `./dev-local.sh`: 백엔드 환경 시작 (DynamoDB + API)
+- `./dev-frontend.sh`: 프론트엔드 환경 시작 (3개 UI 앱)
+- `./dev-stop.sh`: 백엔드 환경 종료
+- `./dev-frontend-stop.sh`: 프론트엔드 환경 종료
+
+### 14.3 관리자 인증 정보
+- **관리자 로그인**: admin@bell.com / admin123
+- **관리자 대시보드**: http://localhost:8080
+
+### 14.4 카테고리 관리 테스트
+- **기본 카테고리 시드**: `scripts/seed-categories.sh`
+- **카테고리 API 테스트**: Swagger UI (http://localhost:8082)
+- **사장 대시보드**: 메뉴 관리 → 카테고리 관리
 
 ---
 # 부록 A: 기능별 Acceptance Criteria (AC) 상세
@@ -311,6 +401,19 @@ paths:
 
 ---
 
+## 9. 카테고리 관리 API
+- **성공 기준**
+  - 카테고리 생성: 유효한 이름과 표시명 입력 시 새 카테고리 생성
+  - 카테고리 조회: 레스토랑별 카테고리 목록 반환 (순서별 정렬)
+  - 카테고리 수정: 표시명, 활성 상태, 순서 변경 가능
+  - 카테고리 비활성화: 관련 메뉴 초안 상태 전환
+- **실패 기준**
+  - 레스토랑 ID 없음 → 404 Not Found
+  - 카테고리 ID 없음 → 404 Not Found
+  - 필수 필드 누락 → 400 Bad Request
+
+---
+
 ## 10. 자동완료 처리
 - **성공 기준**
   - READY 상태 이후 `AUTO_COMPLETE_MINUTES` 경과 시 `COMPLETED`로 상태 변경
@@ -358,20 +461,27 @@ paths:
    - 로그인 유지 체크
 2. **메뉴 관리 메인 화면**
    - 현재 버전 메뉴 리스트
-   - “새 버전 만들기” 버튼
-3. **메뉴 등록/편집 화면**
+   - **카테고리 관리 버튼**
+   - "새 버전 만들기" 버튼
+3. **카테고리 관리 화면**
+   - 카테고리 목록 (활성/비활성 상태 표시)
+   - 카테고리 생성/편집 모달
+   - 활성화/비활성화 토글
+   - 카테고리 순서 변경
+4. **메뉴 등록/편집 화면**
    - 이미지 업로드
    - 이름 / 설명 / 가격 / 옵션 입력
+   - **카테고리 선택 드롭다운**
    - 저장 후 버전 확정 버튼
-4. **주문 관리 화면**
+5. **주문 관리 화면**
    - 실시간 주문 목록
    - 주문번호 / 메뉴 / 금액 / 상태 표시
    - 조리 시작 / 취소 버튼
-5. **주문 상세 화면**
+6. **주문 상세 화면**
    - 주문 메뉴 상세
    - POS 프린트 버튼
    - 조리 완료 / 픽업 완료 버튼
-6. **판매 내역 화면**
+7. **판매 내역 화면**
    - 일자별 매출표
    - 결제 상세내역
    - 검색/필터
@@ -413,7 +523,9 @@ paths:
 ```
 [로그인] 
   ↓
-[메뉴 관리] → [메뉴 등록/편집] → [버전 확정]
+[메뉴 관리] → [카테고리 관리] → [카테고리 생성/편집]
+  ↓               ↓
+[메뉴 등록/편집] → [버전 확정]
   ↓
 [주문 관리] → [주문 상세] → [POS 출력] → [조리 완료]
   ↓

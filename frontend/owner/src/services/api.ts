@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
-import type { MenuItem, Order, OrderStatus } from '../types/api';
+import type { MenuItem, Order, OrderStatus, Category, CreateCategoryRequest, UpdateCategoryRequest } from '../types/api';
 
 interface LoginCredentials {
   email: string;
@@ -316,6 +316,22 @@ class ApiClient {
       password
     });
     return response.data;
+  }
+
+  // Category Management
+  async getCategories(restaurantId: string): Promise<Category[]> {
+    const response = await this.client.get(`/restaurants/${restaurantId}/categories`);
+    return response.data.categories || [];
+  }
+
+  async createCategory(restaurantId: string, category: CreateCategoryRequest): Promise<Category> {
+    const response = await this.client.post(`/restaurants/${restaurantId}/categories`, category);
+    return response.data.category;
+  }
+
+  async updateCategory(restaurantId: string, categoryId: string, updates: UpdateCategoryRequest): Promise<Category> {
+    const response = await this.client.put(`/restaurants/${restaurantId}/categories/${categoryId}`, updates);
+    return response.data.category;
   }
 }
 

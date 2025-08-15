@@ -196,6 +196,30 @@ Resources:
             Path: /restaurants/verify
             Method: post
 
+  CategoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/category.handler
+      Events:
+        GetCategories:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/{restaurantId}/categories
+            Method: get
+        PostCategory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/{restaurantId}/categories
+            Method: post
+        PutCategory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BellApi
+            Path: /restaurants/{restaurantId}/categories/{categoryId}
+            Method: put
+
   # Note: AutoCompleteFunction excluded from local development
   # as it requires EventBridge scheduling
 

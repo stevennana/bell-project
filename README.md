@@ -42,7 +42,8 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 - Pickup notifications
 
 ### Owner Features
-- Menu version management
+- Menu version management with draft/published states
+- **Category Management**: Create, edit, activate/deactivate menu categories
 - Real-time order processing
 - POS printer integration (kitchen tickets/receipts)
 - Order status management
@@ -74,6 +75,8 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 │   │   ├── order.ts      # POST/GET/DELETE /order
 │   │   ├── pos.ts        # POS printing operations
 │   │   ├── payment-callback.ts  # Payment webhooks
+│   │   ├── restaurant.ts # Restaurant management (Admin)
+│   │   ├── category.ts   # Category management (Owner)
 │   │   └── auto-complete.ts     # Scheduled completion
 │   ├── lib/              # Shared libraries
 │   │   ├── dynamodb.ts   # Database operations
@@ -95,18 +98,23 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 │   │   │   └── utils/      # Utility functions
 │   │   ├── package.json    # Dependencies (React + Vite)
 │   │   └── tailwind.config.js # Mobile-first styling
-│   └── owner/            # Owner Dashboard (Desktop + Mobile)
-│       ├── src/
-│       │   ├── components/ # React components
-│       │   ├── pages/      # Page components
-│       │   ├── hooks/      # Custom hooks
-│       │   ├── types/      # TypeScript types
-│       │   └── utils/      # Utility functions
-│       ├── package.json    # Dependencies (React + Vite + Lucide)
-│       └── tailwind.config.js # Dashboard styling
+│   ├── owner/            # Owner Dashboard (Desktop + Mobile)
+│   │   ├── src/
+│   │   │   ├── components/ # React components
+│   │   │   ├── pages/      # Page components
+│   │   │   ├── hooks/      # Custom hooks
+│   │   │   ├── types/      # TypeScript types
+│   │   │   └── utils/      # Utility functions
+│   │   ├── package.json    # Dependencies (React + Vite + Lucide)
+│   │   └── tailwind.config.js # Dashboard styling
+│   └── admin/            # Admin Dashboard (Desktop)
+│       └── index.html      # Restaurant management interface
 ├── template.yaml         # SAM infrastructure template
 ├── samconfig.toml        # SAM deployment configuration
-├── dev-frontend.sh       # Start both frontends
+├── dev-local.sh          # Start backend environment
+├── dev-frontend.sh       # Start all frontends
+├── dev-stop.sh           # Stop backend environment
+├── dev-frontend-stop.sh  # Stop frontend environment
 └── package.json          # Backend dependencies
 ```
 
@@ -158,9 +166,9 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
    This will:
    - Start DynamoDB Local on port 8000
    - Start DynamoDB Admin UI on port 8001
-   - Start Admin Dashboard on port 8080
    - Create all required tables
    - Build the SAM application
+   - Start API Gateway Local on port 3000
 
 2. **Start the API server**:
    ```bash
@@ -172,13 +180,14 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 
 #### Frontend Development
 
-4. **Start both frontends** (in a new terminal):
+4. **Start all frontends** (in a new terminal):
    ```bash
    ./dev-frontend.sh
    ```
    This will start:
-   - **Customer Frontend**: http://localhost:3001
-   - **Owner Dashboard**: http://localhost:3002
+   - **Owner Dashboard**: http://localhost:3001
+   - **Customer Frontend**: http://localhost:3002
+   - **Admin Dashboard**: http://localhost:8080
 
 **Or start them individually:**
 
@@ -196,8 +205,9 @@ A serverless restaurant ordering and payment system built with AWS Lambda, Dynam
 
 Access all services:
 - **🔧 Backend API**: http://localhost:3000
-- **🛍️ Customer Frontend**: http://localhost:3001  
-- **👨‍💼 Owner Dashboard**: http://localhost:3002
+- **👨‍💼 Owner Dashboard**: http://localhost:3001  
+- **🛍️ Customer Frontend**: http://localhost:3002
+- **⚙️ Admin Dashboard**: http://localhost:8080 (admin@bell.com / admin123)
 - **🗄️ DynamoDB Admin**: http://localhost:8001
 
 #### Stopping Development
@@ -206,7 +216,8 @@ Access all services:
 # Stop backend
 ./dev-stop.sh
 
-# Stop frontends (Ctrl+C in terminal running dev-frontend.sh)
+# Stop frontends
+./dev-frontend-stop.sh
 ```
 
 ### Production Deployment
@@ -249,6 +260,14 @@ Access all services:
 - `POST /payment/callback/naverpay` - NaverPay webhook
 - `POST /payment/callback/kakaopay` - KakaoPay webhook
 
+### Restaurant Management (Admin)
+- `GET /restaurants` - Get all restaurants (Admin only)
+- `POST /restaurants` - Create new restaurant (Admin only)
+- `GET /restaurants/{restaurantId}` - Get restaurant details
+- `PUT /restaurants/{restaurantId}` - Update restaurant (Admin only)
+- `DELETE /restaurants/{restaurantId}` - Delete restaurant (Admin only)
+- `POST /restaurants/verify` - Verify owner credentials
+
 ## Configuration
 
 ### Environment Variables
@@ -272,12 +291,13 @@ POS_PRINT_TYPE=kitchen     # receipt|kitchen|both
 
 ### DynamoDB Tables
 
-The system uses 4 main tables:
+The system uses 5 main tables:
 
-1. **bell-menus-{env}**: Menu versions with items
-2. **bell-orders-{env}**: Order lifecycle and payment info  
-3. **bell-users-{env}**: Owner authentication
-4. **bell-pos-jobs-{env}**: Print job tracking
+1. **bell-restaurants-{env}**: Restaurant accounts and management
+2. **bell-menus-{env}**: Menu versions with items
+3. **bell-orders-{env}**: Order lifecycle and payment info  
+4. **bell-users-{env}**: Owner authentication
+5. **bell-pos-jobs-{env}**: Print job tracking
 
 ## Payment Integration
 
@@ -311,13 +331,15 @@ Configure printer endpoint in environment variables.
 
 Start Swagger UI using Docker:
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm -p 8082:8080 \
   -e SWAGGER_JSON=/app/swagger.yaml \
   -v "$PWD/swagger.yaml:/app/swagger.yaml" \
   swaggerapi/swagger-ui
 ```
 
-Then open: http://localhost:8080
+Then open: http://localhost:8082
+
+**Note**: Port 8082 is used to avoid conflicts with the Admin Dashboard on port 8080.
 
 **Features:**
 - Interactive API documentation
@@ -404,6 +426,24 @@ curl -X POST "http://localhost:3000/order" \
   }'
 ```
 
+**Test admin endpoints:**
+```bash
+# Get all restaurants (Admin only)
+curl "http://localhost:3000/restaurants" \
+  -H "Authorization: Basic $(echo -n 'admin@bell.com:admin123' | base64)"
+
+# Create a new restaurant (Admin only)
+curl -X POST "http://localhost:3000/restaurants" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Basic $(echo -n 'admin@bell.com:admin123' | base64)" \
+  -d '{
+    "restaurantId": "rest_002",
+    "restaurantName": "Bella Pizza",
+    "ownerEmail": "owner@bella.com",
+    "ownerPassword": "password123"
+  }'
+```
+
 ### 🏃 Complete Testing Workflow
 
 1. **Start development environment:**
@@ -418,12 +458,12 @@ curl -X POST "http://localhost:3000/order" \
 
 3. **Test with Swagger UI:**
    ```bash
-   docker run --rm -p 8080:8080 \
+   docker run --rm -p 8082:8080 \
      -e SWAGGER_JSON=/app/swagger.yaml \
      -v "$PWD/swagger.yaml:/app/swagger.yaml" \
      swaggerapi/swagger-ui
    ```
-   Open: http://localhost:8080
+   Open: http://localhost:8082
 
 4. **Test DynamoDB:**
    ```bash
@@ -447,7 +487,8 @@ npm run test:watch
 
 ### Available Test URLs
 - **API Server**: http://localhost:3000
-- **Swagger UI**: http://localhost:8080
+- **Swagger UI**: http://localhost:8082
+- **Admin Dashboard**: http://localhost:8080
 - **DynamoDB Admin**: http://localhost:8001
 - **DynamoDB Local**: http://localhost:8000
 

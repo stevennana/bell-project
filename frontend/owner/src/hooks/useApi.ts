@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type LoginResponse } from '../services/api';
-import type { MenuItem, OrderStatus } from '../types/api';
+import type { MenuItem, OrderStatus, Category, CreateCategoryRequest, UpdateCategoryRequest } from '../types/api';
 
 // Auth hooks
 export const useLogin = () => {
@@ -227,5 +227,43 @@ export const useRestaurant = (restaurantId: string) => {
     enabled: !!restaurantId,
     staleTime: 10 * 60 * 1000, // 10 minutes - restaurant info doesn't change often
     retry: 3
+  });
+};
+
+// Category hooks
+export const useCategories = (restaurantId: string) => {
+  return useQuery({
+    queryKey: ['categories', restaurantId],
+    queryFn: () => apiClient.getCategories(restaurantId),
+    enabled: !!restaurantId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 3
+  });
+};
+
+export const useCreateCategory = (restaurantId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (category: CreateCategoryRequest) => 
+      apiClient.createCategory(restaurantId, category),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories', restaurantId] });
+    }
+  });
+};
+
+export const useUpdateCategory = (restaurantId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ categoryId, updates }: { categoryId: string; updates: UpdateCategoryRequest }) => 
+      apiClient.updateCategory(restaurantId, categoryId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories', restaurantId] });
+      // Also invalidate menu data since category changes affect menu items
+      queryClient.invalidateQueries({ queryKey: ['menu', restaurantId] });
+      queryClient.invalidateQueries({ queryKey: ['draftMenu', restaurantId] });
+    }
   });
 };
