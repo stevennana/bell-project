@@ -110,3 +110,4 @@ samconfig.toml
 ehthumbs.db
 Thumbs.db
 /.aws-sam/
+/screenshot/

@@ -114,19 +114,29 @@ class ApiClient {
   }
 
   async getPublishedMenu(restaurantId: string): Promise<{ items: MenuItem[], status: string, version: string }> {
-    const response: AxiosResponse<any> = await this.client.get(`/menu/published`, {
-      params: { restaurantId }
-    });
-    
-    if (response.data.menu) {
-      return {
-        items: response.data.menu.items || [],
-        status: response.data.menu.status,
-        version: response.data.menu.version
-      };
+    try {
+      const response: AxiosResponse<any> = await this.client.get(`/menu/published`, {
+        params: { restaurantId }
+      });
+      
+      if (response.data.menu) {
+        return {
+          items: response.data.menu.items || [],
+          status: response.data.menu.status,
+          version: response.data.menu.version
+        };
+      }
+      
+      return response.data;
+    } catch (error: any) {
+      // 404 means no published menu exists - this is normal, don't log
+      if (error?.response?.status === 404) {
+        throw error; // Re-throw for React Query to handle
+      }
+      // Log other errors
+      console.warn('Published menu endpoint error:', error?.message || error);
+      throw error;
     }
-    
-    return response.data;
   }
 
   async getDraftMenu(restaurantId: string): Promise<{ items: MenuItem[], status: string, version: string } | null> {
@@ -184,9 +194,15 @@ class ApiClient {
         params: { restaurantId }
       });
       return response.data || [];
-    } catch (error) {
-      // If endpoint doesn't exist yet, return empty array
-      console.warn('Orders endpoint not available yet:', error);
+    } catch (error: any) {
+      // Silently handle CORS and network errors without logging
+      if (error?.code === 'ERR_NETWORK' || error?.message?.includes('CORS') || error?.message?.includes('Access to XMLHttpRequest')) {
+        return [];
+      }
+      // Only log other types of errors
+      if (error?.response?.status !== 404) {
+        console.warn('Orders endpoint error:', error?.message || error);
+      }
       return [];
     }
   }

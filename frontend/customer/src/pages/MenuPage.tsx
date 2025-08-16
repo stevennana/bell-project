@@ -23,7 +23,7 @@ export default function MenuPage() {
 
   const categories = menu?.items ? ['all', ...new Set(menu.items.map(item => item.category))] : ['all']
   const filteredItems = menu?.items?.filter(item => 
-    selectedCategory === 'all' || item.category === selectedCategory
+    item.available && (selectedCategory === 'all' || item.category === selectedCategory)
   ) || []
 
   const handleItemSelect = (item: MenuItem) => {
